@@ -1,0 +1,36 @@
+<?xml version='1.0'?>
+<sdf version="1.7">
+  <model name='gale_crater_patch1'>
+    <pose>0 0 0 0 0 0</pose>
+    <static>1</static>
+    <link name='link'>
+      <collision name='collision'>
+        <geometry>
+          <mesh>
+            <uri>meshes/gale_crater_patch1.stl</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='visual'>
+        <cast_shadows>1</cast_shadows>
+        <geometry>
+          <mesh>
+            <uri>meshes/gale_crater_patch1.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <script>
+            <uri>materials/scripts/rock_texture_1.material</uri>
+            <name>RockTexture1</name>
+          </script>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/sand_pebbles.png</albedo_map>
+            </metal>
+          </pbr>
+          <diffuse>1 1 1 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
