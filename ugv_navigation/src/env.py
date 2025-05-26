@@ -50,16 +50,14 @@ class GazeboUGV:
         # ------------------------Publisher and Subscriber---------------------------
         self.vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
         self.set_state = rospy.Publisher("/gazebo/set_model_state", ModelState, queue_size=10)
-        self.object_state_sub = rospy.Subscriber(
-            "gazebo/model_states", ModelStates, self.ModelStateCallBack
-        )
-        self.image_sub = rospy.Subscriber("/front_cam/camera/image", Image, self.ImageCallBack)
+        self.object_state_sub = rospy.Subscriber("gazebo/model_states", ModelStates, self.ModelStateCallBack)
+        self.image_sub = rospy.Subscriber("/mycar/camera_right/image_raw_right", Image, self.ImageCallBack)
         self.unpause = rospy.ServiceProxy("/gazebo/unpause_physics", Empty)
         self.pause = rospy.ServiceProxy("/gazebo/pause_physics", Empty)
         rospy.sleep(1.0)
 
     def ModelStateCallBack(self, data):
-        idx = data.name.index("quadrotor")
+        idx = data.name.index("mycar")
         quaternion = (
             data.pose[idx].orientation.x,
             data.pose[idx].orientation.y,
@@ -169,7 +167,7 @@ class GazeboUGV:
         move_cmd.linear.y = 0.0
         self.vel_pub.publish(move_cmd)
         rospy.sleep(0.3)
-        state.model_name = "quadrotor"
+        state.model_name = "mycar"
         state.reference_frame = "world"  # ''ground_plane'
         # pose
         state.pose.position.x = x

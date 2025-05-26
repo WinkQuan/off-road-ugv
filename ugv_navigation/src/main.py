@@ -21,8 +21,8 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(4)
 
 # 可视化数据工具
-wandb.login()
-wandb.init(project="Your_Project", name="Your_Run_Name")
+# wandb.login()
+# wandb.init(project="Your_Project", name="Your_Run_Name")
 
 # 设置训练总轮数、最大步长和车重
 total_episode = 10000
@@ -85,8 +85,8 @@ for i_episode in range(total_episode + 1):
         ts = time.time()
         if len(agent.replay_buffer.memory) > 64:
             loss_imitation, loss_dqn = agent.learn()
-            wandb.log({"Loss_Imi": loss_imitation}, step=i_episode)
-            wandb.log({"Loss_DQN": loss_dqn}, step=i_episode)
+            # wandb.log({"Loss_Imi": loss_imitation}, step=i_episode)
+            # wandb.log({"Loss_DQN": loss_dqn}, step=i_episode)
         while time.time() - ts <= 0.1:
             continue
         next_state1, next_state2, terminal, reward, success = GazeboUGV.step(time_step=t + 1)
@@ -120,9 +120,9 @@ for i_episode in range(total_episode + 1):
             i_episode, t + 1, current_episode_reward, agent.eps
         )
     )
-    wandb.log({"Reward": current_episode_reward}, step=i_episode)
-    wandb.log({"Step": t + 1}, step=i_episode)
-    wandb.log({"Success Rate": success_rate}, step=i_episode)
+    # wandb.log({"Reward": current_episode_reward}, step=i_episode)
+    # wandb.log({"Step": t + 1}, step=i_episode)
+    # wandb.log({"Success Rate": success_rate}, step=i_episode)
     reward_file_path = model_path + "Your_Reward_File_Name"
     step_file_path = model_path + "Your_Step_File_Name"
     success_rate_file_path = model_path + "Your_Success_Rate_File_Name"

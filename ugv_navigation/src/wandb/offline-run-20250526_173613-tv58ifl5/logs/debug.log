@@ -1,0 +1,26 @@
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Current SDK version is 0.17.9
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Configure stats pid to 1135242
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Loading settings from /home/lab1523-1-1/.config/wandb/settings
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Loading settings from /home/lab1523-1-1/Desktop/qwk/off-road-ugv/src/ugv_navigation/src/wandb/settings
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Loading settings from environment variables: {}
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Inferring run settings from compute environment: {'program_relpath': 'ugv_navigation/src/main.py', 'program_abspath': '/home/lab1523-1-1/Desktop/qwk/off-road-ugv/src/ugv_navigation/src/main.py', 'program': '/home/lab1523-1-1/Desktop/qwk/off-road-ugv/src/ugv_navigation/src/main.py'}
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Applying login settings: {}
+2025-05-26 17:36:13,607 INFO    MainThread:1135242 [wandb_setup.py:_EarlyLogger._flush():77] Applying login settings: {'mode': 'offline'}
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [wandb_init.py:_WandbInit._log_setup():524] Logging user logs to /home/lab1523-1-1/Desktop/qwk/off-road-ugv/src/ugv_navigation/src/wandb/offline-run-20250526_173613-tv58ifl5/logs/debug.log
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [wandb_init.py:_WandbInit._log_setup():525] Logging internal logs to /home/lab1523-1-1/Desktop/qwk/off-road-ugv/src/ugv_navigation/src/wandb/offline-run-20250526_173613-tv58ifl5/logs/debug-internal.log
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():608] calling init triggers
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():615] wandb.init called with sweep_config: {}
+config: {}
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():658] starting backend
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():662] setting up manager
+2025-05-26 17:36:13,608 INFO    MainThread:1135242 [backend.py:Backend._multiprocessing_setup():105] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2025-05-26 17:36:13,609 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():670] backend started and connected
+2025-05-26 17:36:13,610 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():768] updated telemetry
+2025-05-26 17:36:13,614 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():801] communicating run to backend with 90.0 second timeout
+2025-05-26 17:36:13,617 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():852] starting run threads in backend
+2025-05-26 17:36:15,027 INFO    MainThread:1135242 [wandb_run.py:Run._console_start():2465] atexit reg
+2025-05-26 17:36:15,027 INFO    MainThread:1135242 [wandb_run.py:Run._redirect():2311] redirect: wrap_raw
+2025-05-26 17:36:15,027 INFO    MainThread:1135242 [wandb_run.py:Run._redirect():2376] Wrapping output streams.
+2025-05-26 17:36:15,027 INFO    MainThread:1135242 [wandb_run.py:Run._redirect():2401] Redirects installed.
+2025-05-26 17:36:15,028 INFO    MainThread:1135242 [wandb_init.py:_WandbInit.init():895] run started, returning control to user process
+2025-05-26 17:36:19,370 WARNING MsgRouterThr:1135242 [router.py:MessageSockRouter.message_loop():77] message_loop has been closed

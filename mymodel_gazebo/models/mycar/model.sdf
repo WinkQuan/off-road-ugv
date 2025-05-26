@@ -339,7 +339,7 @@
         <update_rate>9</update_rate>
         <visualize>1</visualize>
         <!-- <pose>0.34655 0.07561 0.08992 0 -0.26 -0.58</pose> -->
-        <pose>0.34655 0.07561 0.08992 0 0 0</pose>
+        <pose>0.34655 0.07561 0.08992 0 -0.26 0</pose>
         <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
           <alwaysOn>true</alwaysOn>
           <updateRate>0.0</updateRate>
