@@ -14,6 +14,7 @@
 			</attenuation>
 			<direction>-0.5 0.1 -0.9</direction>
 		</light>
+		<!-- 地形场景 -->
 		<include>
 			<name>myterrain</name>
 			<pose>0 0 0 0 0 0</pose>
@@ -25,8 +26,59 @@
 			<uri>model://unit_box_real</uri>
 		</include>
 		<include>
+			<name>unit_cylinder0</name>
+			<pose>0 15 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder1</name>
+			<pose>0 25 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder2</name>
+			<pose>0 35 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder3</name>
+			<pose>0 45 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder4</name>
+			<pose>0 55 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder5</name>
+			<pose>0 65 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder6</name>
+			<pose>0 75 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder7</name>
+			<pose>0 85 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder8</name>
+			<pose>0 95 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<include>
+			<name>unit_cylinder9</name>
+			<pose>0 105 5 0 0 0</pose>
+			<uri>model://unit_cylinder</uri>
+		</include>
+		<!-- 小车模型 -->
+		<include>
 			<name>mycar</name>
-			<pose>0 0 10 0 0 0</pose>
+			<pose>0 0 5 0 0 0</pose>
 			<uri>model://mycar</uri>
 		</include>
 	</world>

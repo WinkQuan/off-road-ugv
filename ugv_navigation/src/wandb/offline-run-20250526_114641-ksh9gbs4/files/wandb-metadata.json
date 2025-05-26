@@ -1,0 +1,208 @@
+{
+    "os": "Linux-5.15.0-139-generic-x86_64-with-glibc2.31",
+    "python": "3.10.16",
+    "heartbeatAt": "2025-05-26T03:46:41.928228",
+    "startedAt": "2025-05-26T03:46:41.797237",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/lab1523-1-1/Desktop/qwk/off-road-ugv/src/ugv_navigation/src/main.py",
+    "codePathLocal": "main.py",
+    "codePath": "ugv_navigation/src/main.py",
+    "git": {
+        "remote": "https://github.com/WinkQuan/off-road-ugv.git",
+        "commit": "3c4ac833e536e262037b5e4ea628a5768081c3ba"
+    },
+    "email": null,
+    "root": "/home/lab1523-1-1/Desktop/qwk/off-road-ugv/src",
+    "host": "lab1523-1-1",
+    "username": "lab1523-1-1",
+    "executable": "/home/software/Anaconda/envs/wink-npedrl/bin/python",
+    "cpu_count": 16,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 3086.22196875,
+        "min": 3000.0,
+        "max": 4500.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2743.686,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 5489.525,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 2744.568,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 4500.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        },
+        {
+            "current": 3000.0,
+            "min": 3000.0,
+            "max": 4500.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 915.3232879638672,
+            "used": 368.9408264160156
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 4090",
+            "memory_total": 25757220864
+        }
+    ],
+    "memory": {
+        "total": 62.00584030151367
+    }
+}
