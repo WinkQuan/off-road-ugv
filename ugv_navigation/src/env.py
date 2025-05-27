@@ -31,7 +31,7 @@ class GazeboUGV:
         self.bridge = CvBridge()
         self.position = []
 
-        self.goal_space = config.goal_space
+        self.target_space = config.goal_space
         self.start_space = config.start_space
 
         self.success = False
@@ -122,7 +122,14 @@ class GazeboUGV:
         except Exception as err:
             print("Ros_to_Cv2 Failure: %s" % err)
 
-    def goal2rob(self):
+    def normalize_angle(self, alpha):
+        while alpha > math.pi:
+            alpha -= 2 * math.pi
+        while alpha < -math.pi:
+            alpha += 2 * math.pi
+        return alpha
+    
+    def goal2robot(self):
         # Calculate the distance between the goal and the agent
         theta = self.self_state[2]
         a_x = self.goal[0] - self.self_state[0]
@@ -132,7 +139,7 @@ class GazeboUGV:
         alpha = self.normalize_angle(alpha)
         return dist, alpha
 
-    def obs2rob(self, o_x, o_y):
+    def obs2robot(self, o_x, o_y):
         theta = self.self_state[2]
         s_x = o_x - self.self_state[0]
         s_y = o_y - self.self_state[1]
@@ -144,7 +151,7 @@ class GazeboUGV:
     def detect_collision(self):
         collision = False
         for i in range(len(self.cylinder_pos)):
-            e, _ = self.obs2rob(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
+            e, _ = self.obs2robot(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
             if e < 1.0:
                 collision = True
 
@@ -153,7 +160,7 @@ class GazeboUGV:
     def get_obs_state(self):
         self.obstacle_state.clear()
         for i in range(len(self.cylinder_pos)):
-            dist, angle = self.obs2rob(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
+            dist, angle = self.obs2robot(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
             self.obstacle_state.extend([dist, angle])
 
     def get_states(self):
@@ -222,30 +229,25 @@ class GazeboUGV:
         state.twist.angular.z = 0
         self.set_state.publish(state)
 
-    def normalize_angle(self, alpha):
-        while alpha > math.pi:
-            alpha -= 2 * math.pi
-        while alpha < -math.pi:
-            alpha += 2 * math.pi
-        return alpha
-
     def reset(self):
+        # 设置小车的初始位置和目标位置
         start_index = np.random.choice(len(self.start_space))
-        goal_index = np.random.choice(len(self.goal_space))
+        target_index = np.random.choice(len(self.target_space))
         start = np.array(self.start_space[start_index]) + np.random.uniform(-0.3, 0.3)
-        goal = np.array(self.goal_space[goal_index]) + np.random.uniform(-0.3, 0.3)
+        target = np.array(self.target_space[target_index]) + np.random.uniform(-0.3, 0.3)
         # -------------------------------------
         theta = -math.pi / 2
-        self.set_goal(goal[0], goal[1])
+        self.set_goal(target[0], target[1])
         self.set_uav_pose(start[0], start[1], theta)
-        self.set_goal_pose(goal[0], goal[1])
+        self.set_goal_pose(target[0], target[1])
         rospy.sleep(0.1)
         self.set_obs_pose_random()
-        d0, alpha0 = self.goal2rob()
+        d0, alpha0 = self.goal2robot()
         self.position = [d0, alpha0]
         self.reward = 0
         self.dist_init = d0
-        self.dist_start = abs(goal[1] - start[1])
+        # 没用到dist_start
+        self.dist_start = abs(target[1] - start[1])
         self.success = False
         rospy.sleep(0.1)
         self.stacked_imgs = np.dstack([self.get_image_observation()] * 4)
@@ -282,7 +284,7 @@ class GazeboUGV:
         rospy.sleep(0.2)  # execute time
 
     def step(self, time_step):
-        d1, alpha1 = self.goal2rob()
+        d1, alpha1 = self.goal2robot()
         self.position = [d1, alpha1]
         self.dist = d1
         terminal, reward, success = self.get_reward_and_terminate(time_step)
@@ -294,7 +296,7 @@ class GazeboUGV:
 
     def get_reward_and_terminate(self, time_step):
         terminal = False
-        dist2goal, _ = self.goal2rob()
+        dist2goal, _ = self.goal2robot()
         reward = 0.1 * (self.dist_init - self.dist) - 0.002
 
         if dist2goal < 0.5:

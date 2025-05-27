@@ -17,7 +17,7 @@
 		<!-- 地形场景 -->
 		<include>
 			<name>myterrain</name>
-			<pose>0 0 0 0 0 0</pose>
+			<pose>0 0 -7 0 0 0</pose>
 			<uri>model://myterrain</uri>
 		</include>
 		<include>

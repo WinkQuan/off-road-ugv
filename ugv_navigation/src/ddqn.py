@@ -69,8 +69,7 @@ class DQNNet(nn.Module):
         self.fc_target = nn.Linear(2, 64)
         #  Modified the output size of the image convolution, previously it was 1 x 64 x 1 x 1, now it is 1 X 64 X 5 X 3,so the size of the fully connected layer needs to be changed as well
         # self.fc_1 = nn.Linear(64 * 1 * 1 + 64, 256)
-        # self.fc_1 = nn.Linear(64 * 18 * 18 + 64, 256)
-        self.fc_1 = nn.Linear(64 * 53 * 40 + 64, 256)
+        self.fc_1 = nn.Linear(64 * 18 * 18 + 64, 256)
         self.fc_2 = nn.Linear(256, 256)
         self.output_vx = nn.Linear(256, len(self.action_space_vx))
         self.output_vy = nn.Linear(256, len(self.action_space_vy))
@@ -229,11 +228,9 @@ class DQN():
             'optimizer_states': self.optimizer.state_dict()
         }
         torch.save(checkpoint, path)
-        print("model saved!")
     def save_onnx_model(self, param_path_onnx):
         self.predict_net.eval()
-        # dummy_state1 = torch.randn(64, 224, 224, 12).to(self.device)
-        dummy_state1 = torch.randn(64, 480, 640, 12).to(self.device)
+        dummy_state1 = torch.randn(64, 224, 224, 12).to(self.device)
         dummy_state2 = torch.randn(64, 2).to(self.device)
         torch.onnx.export(self.predict_net,
                     (dummy_state1, dummy_state2),

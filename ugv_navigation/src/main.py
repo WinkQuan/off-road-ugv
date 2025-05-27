@@ -12,6 +12,7 @@ import torch
 import rospy
 import wandb
 import APF_Vel_ROS
+import helper_functions
 
 # 设置随机数种子
 random.seed(4)
@@ -27,7 +28,7 @@ if torch.cuda.is_available():
 # 设置训练总轮数、最大步长和车重
 total_episode = 10000
 max_step_per_episode = 200
-ugv_mass = 1.48
+ugv_mass = 62.01455
 
 # 设置模型保存路径和模型文件名
 model_path = "Your_Model_Path"
@@ -57,6 +58,7 @@ ep_success_list = []
 
 # 开始训练，训练的总轮数为total_episode
 for i_episode in range(total_episode + 1):
+    # 没用到dist_normalized
     state1, state2, dist_normalized = GazeboUGV.reset()
     current_episode_reward = 0
     # 每一步的操作
@@ -66,7 +68,7 @@ for i_episode in range(total_episode + 1):
         obs_pos = np.array(GazeboUGV.cylinder_pos)
         action_space_vx = GazeboUGV.action_space_vx
         action_space_vy = GazeboUGV.action_space_vy
-        # att和rep不需要？
+        # att和rep似乎不需要返回？
         att, rep, vx_world, vy_world = APF_Vel_ROS.vel_control(
             target_location=target_location,
             current_position=current_position,
@@ -76,9 +78,11 @@ for i_episode in range(total_episode + 1):
         )
         yaw = GazeboUGV.self_state[2]
         # 将世界坐标系下的速度转换为无人车坐标系下的速度
-        vx_uav, vy_uav = APF_Vel_ROS.convert_to_uav_frame(vx_world, vy_world, yaw)
-        vx_uav_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_uav, action_space_vx, strategy="min")
-        vy_uav_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vy_uav, action_space_vy, strategy="max")
+        vx_ugv, vy_ugv = APF_Vel_ROS.convert_to_uav_frame(vx_world, vy_world, yaw)
+        vx_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_ugv, action_space_vx, strategy="min")
+        vy_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vy_ugv, action_space_vy, strategy="max")
+        # 将图片resize为(224, 224, 4)，并转换为tensor
+        state1 = helper_functions.image_processing(state1)
         # 开始训练，获取动作
         action_vx, action_vy = agent.get_action(state1, state2, dist_normalized)
         GazeboUGV.execute_linear_velocity(action_vx, action_vy)
@@ -92,7 +96,7 @@ for i_episode in range(total_episode + 1):
         next_state1, next_state2, terminal, reward, success = GazeboUGV.step(time_step=t + 1)
         current_episode_reward += reward
         action = [action_vx, action_vy]
-        apf_index = [vx_uav_mapped, vy_uav_mapped]
+        apf_index = [vx_ugv_mapped, vy_ugv_mapped]
         agent.replay_buffer.add(
             state1, state2, action, apf_index, reward, next_state1, next_state2, terminal
         )
