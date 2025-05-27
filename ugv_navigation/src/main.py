@@ -27,7 +27,7 @@ if torch.cuda.is_available():
 
 # 设置训练总轮数、最大步长和车重
 total_episode = 10000
-max_step_per_episode = 200
+max_step_per_episode = 80
 ugv_mass = 62.01455
 
 # 设置模型保存路径和模型文件名
@@ -81,8 +81,6 @@ for i_episode in range(total_episode + 1):
         vx_ugv, vy_ugv = APF_Vel_ROS.convert_to_uav_frame(vx_world, vy_world, yaw)
         vx_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_ugv, action_space_vx, strategy="min")
         vy_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vy_ugv, action_space_vy, strategy="max")
-        # 将图片resize为(224, 224, 4)，并转换为tensor
-        state1 = helper_functions.image_processing(state1)
         # 开始训练，获取动作
         action_vx, action_vy = agent.get_action(state1, state2, dist_normalized)
         GazeboUGV.execute_linear_velocity(action_vx, action_vy)

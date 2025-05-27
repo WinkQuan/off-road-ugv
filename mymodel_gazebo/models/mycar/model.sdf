@@ -310,8 +310,8 @@
         <camera name="camera_0">
           <horizontal_fov>1.50971</horizontal_fov>
           <image>
-            <width>1920</width>
-            <height>1200</height>
+            <width>224</width>
+            <height>224</height>
             <format>R8G8B8</format>
           </image>
           <clip>

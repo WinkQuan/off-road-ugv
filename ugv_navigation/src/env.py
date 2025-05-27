@@ -202,7 +202,7 @@ class GazeboUGV:
             state.reference_frame = "world"  # ''ground_plane'
             state.pose.position.x = config.obstacle_position[i][0] + random.uniform(-0.2, 0.2)
             state.pose.position.y = config.obstacle_position[i][1] + random.uniform(-0.2, 0.2)
-            state.pose.position.z = 1.0
+            state.pose.position.z = 3.0
             state.twist.linear.x = 0
             state.twist.linear.y = 0
             state.twist.linear.z = 0
@@ -239,9 +239,9 @@ class GazeboUGV:
         theta = -math.pi / 2
         self.set_goal(target[0], target[1])
         self.set_uav_pose(start[0], start[1], theta)
-        self.set_goal_pose(target[0], target[1])
+        # self.set_goal_pose(target[0], target[1])
         rospy.sleep(0.1)
-        self.set_obs_pose_random()
+        # self.set_obs_pose_random()
         d0, alpha0 = self.goal2robot()
         self.position = [d0, alpha0]
         self.reward = 0

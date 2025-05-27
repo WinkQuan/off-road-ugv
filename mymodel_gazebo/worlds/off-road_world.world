@@ -17,62 +17,62 @@
 		<!-- 地形场景 -->
 		<include>
 			<name>myterrain</name>
-			<pose>0 0 -7 0 0 0</pose>
+			<pose>0 0 0 0 0 0</pose>
 			<uri>model://myterrain</uri>
 		</include>
 		<include>
 			<name>unit_box_real</name>
-			<pose>0 5 5 0 0 0</pose>
+			<pose>0 -13 2.54 0 0 0</pose>
 			<uri>model://unit_box_real</uri>
 		</include>
 		<include>
 			<name>unit_cylinder0</name>
-			<pose>0 15 5 0 0 0</pose>
+			<pose>4.43 7.36 2.3 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder1</name>
-			<pose>0 25 5 0 0 0</pose>
+			<pose>0 7.00 2.5 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder2</name>
-			<pose>0 35 5 0 0 0</pose>
+			<pose>5 -1 4.16 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder3</name>
-			<pose>0 45 5 0 0 0</pose>
+			<pose>-4.46 -6.94 5.21 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder4</name>
-			<pose>0 55 5 0 0 0</pose>
+			<pose>2.37 2.46 3.26 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder5</name>
-			<pose>0 65 5 0 0 0</pose>
+			<pose>0.00 -3.00 4.5 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder6</name>
-			<pose>0 75 5 0 0 0</pose>
+			<pose>-5.00 7.00 2.54 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder7</name>
-			<pose>0 85 5 0 0 0</pose>
+			<pose>3.00 -7.00 5.38 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder8</name>
-			<pose>0 95 5 0 0 0</pose>
+			<pose>-5.00 0.50 3.7 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<include>
 			<name>unit_cylinder9</name>
-			<pose>0 105 5 0 0 0</pose>
+			<pose>-3 4 3.86 0 0 0</pose>
 			<uri>model://unit_cylinder</uri>
 		</include>
 		<!-- 小车模型 -->
