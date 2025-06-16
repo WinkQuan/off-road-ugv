@@ -231,17 +231,19 @@ class GazeboUGV:
 
     def reset(self):
         # 设置小车的初始位置和目标位置
-        start_index = np.random.choice(len(self.start_space))
-        target_index = np.random.choice(len(self.target_space))
+        # start_index = np.random.choice(len(self.start_space))
+        # target_index = np.random.choice(len(self.target_space))
+        start_index = 0
+        target_index = 0
         start = np.array(self.start_space[start_index]) + np.random.uniform(-0.3, 0.3)
         target = np.array(self.target_space[target_index]) + np.random.uniform(-0.3, 0.3)
         # -------------------------------------
         theta = -math.pi / 2
         self.set_goal(target[0], target[1])
         self.set_uav_pose(start[0], start[1], theta)
-        # self.set_goal_pose(target[0], target[1])
+        self.set_goal_pose(target[0], target[1])
         rospy.sleep(0.1)
-        # self.set_obs_pose_random()
+        self.set_obs_pose_random()
         d0, alpha0 = self.goal2robot()
         self.position = [d0, alpha0]
         self.reward = 0
@@ -306,10 +308,10 @@ class GazeboUGV:
             self.success = True
 
         elif (
-            (self.self_state[0] >= 6.5)
-            or (self.self_state[0] <= -6.5)
-            or (self.self_state[1] >= 13.5)
-            or (self.self_state[1] <= -13.5)
+            (self.self_state[0] >= 10)
+            or (self.self_state[0] <= -10)
+            or (self.self_state[1] >= 20)
+            or (self.self_state[1] <= -20)
         ):
             reward = -1.0
             print("Out!")

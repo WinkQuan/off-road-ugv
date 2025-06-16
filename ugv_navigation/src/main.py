@@ -28,7 +28,8 @@ if torch.cuda.is_available():
 # 设置训练总轮数、最大步长和车重
 total_episode = 10000
 max_step_per_episode = 80
-ugv_mass = 62.01455
+# ugv_mass = 62.01455
+ugv_mass = 1.48
 
 # 设置模型保存路径和模型文件名
 model_path = "Your_Model_Path"
@@ -56,6 +57,9 @@ ep_reward_list = []
 ep_step_list = []
 ep_success_list = []
 
+print('Action Space_vx = ', GazeboUGV.action_space_vx)
+print('Action Space_vy = ', GazeboUGV.action_space_vy)
+
 # 开始训练，训练的总轮数为total_episode
 for i_episode in range(total_episode + 1):
     # 没用到dist_normalized
@@ -81,8 +85,14 @@ for i_episode in range(total_episode + 1):
         vx_ugv, vy_ugv = APF_Vel_ROS.convert_to_uav_frame(vx_world, vy_world, yaw)
         vx_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_ugv, action_space_vx, strategy="min")
         vy_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vy_ugv, action_space_vy, strategy="max")
+        # print("-----vx_ugv_mapped--------")
+        # print(vx_ugv_mapped)
+        # print("-----vy_ugv_mapped--------")
+        # print(vy_ugv_mapped)
         # 开始训练，获取动作
         action_vx, action_vy = agent.get_action(state1, state2, dist_normalized)
+        print("---------action-----------")
+        print(action_vx, action_vy)
         GazeboUGV.execute_linear_velocity(action_vx, action_vy)
         ts = time.time()
         if len(agent.replay_buffer.memory) > 64:
@@ -144,7 +154,7 @@ for i_episode in range(total_episode + 1):
                 f.write(f"{step}\n")
         ep_step_list = []
         # Save the model and ONNX file
-        agent.save_model(pth_path)
-        onnx_file_name = f"Your_ONNX_Name_{i_episode + 1}.onnx"
-        agent.save_onnx_model(model_path + onnx_file_name)
+        # agent.save_model(pth_path)
+        # onnx_file_name = f"Your_ONNX_Name_{i_episode + 1}.onnx"
+        # agent.save_onnx_model(model_path + onnx_file_name)
 
