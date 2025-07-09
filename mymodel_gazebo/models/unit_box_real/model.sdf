@@ -21,7 +21,7 @@
       <visual name='visual'>
         <geometry>
           <box>
-            <size>1 1 1</size>
+            <size>1 1 15</size>
           </box>
         </geometry>
         <material>
@@ -30,6 +30,7 @@
             <uri>file://media/materials/scripts/gazebo.material</uri>
           </script>
           <shader type='pixel'/>
+          <ambient>1 0 0 1</ambient>
         </material>
         <pose>0 0 0 0 -0 0</pose>
         <transparency>0</transparency>

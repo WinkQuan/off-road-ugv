@@ -91,7 +91,7 @@ for i_episode in range(total_episode + 1):
         # print(vy_ugv_mapped)
         # 开始训练，获取动作
         action_vx, action_vy = agent.get_action(state1, state2, dist_normalized)
-        print("---------action-----------")
+        print("---------action" + str(t) + "-----------")
         print(action_vx, action_vy)
         GazeboUGV.execute_linear_velocity(action_vx, action_vy)
         ts = time.time()

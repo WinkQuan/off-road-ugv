@@ -432,7 +432,7 @@
         </plugin>
       </sensor>
 
-      <light name="light_front_right" type="spot">
+      <!-- <light name="light_front_right" type="spot">
         <pose>0.28511 0.08955 0.19767 0 -1.570 0</pose>
         <cast_shadows>1</cast_shadows>
         <attenuation>
@@ -468,7 +468,7 @@
           <falloff>1</falloff>
         </spot>
         <direction>0 0 -1</direction>
-      </light>
+      </light> -->
 
     </link>
 
