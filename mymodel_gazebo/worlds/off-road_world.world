@@ -22,7 +22,7 @@
 		</include>
 		<include>
 			<name>unit_box_real</name>
-			<pose>0 -13 2.54 0 0 0</pose>
+			<pose>0 -13 -22.54 0 0 0</pose>
 			<uri>model://unit_box_real</uri>
 		</include>
 		<include>
@@ -80,6 +80,12 @@
 			<name>mycar</name>
 			<pose>0 0 5 0 0 0</pose>
 			<uri>model://mycar</uri>
+		</include>
+		<!-- 目标点：一颗树 -->
+		<include>
+			<name>Oak tree</name>
+			<pose>0 -13 2 0 0 0</pose>
+			<uri>model://Oak tree</uri>
 		</include>
 	</world>
 </sdf>

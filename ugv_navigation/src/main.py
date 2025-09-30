@@ -32,7 +32,7 @@ max_step_per_episode = 80
 ugv_mass = 1.48
 
 # 设置模型保存路径和模型文件名
-model_path = "Your_Model_Path"
+model_path = "Model/"
 pth_path = model_path + "Your_Model_Path_Name"
 
 #
@@ -135,9 +135,9 @@ for i_episode in range(total_episode + 1):
     # wandb.log({"Reward": current_episode_reward}, step=i_episode)
     # wandb.log({"Step": t + 1}, step=i_episode)
     # wandb.log({"Success Rate": success_rate}, step=i_episode)
-    reward_file_path = model_path + "Your_Reward_File_Name"
-    step_file_path = model_path + "Your_Step_File_Name"
-    success_rate_file_path = model_path + "Your_Success_Rate_File_Name"
+    reward_file_path = model_path + "Reward"
+    step_file_path = model_path + "Step"
+    success_rate_file_path = model_path + "Success_Rate"
     # If the file exists, it is opened in append mode; otherwise, a new file is created
     mode = "a" if os.path.exists(success_rate_file_path) else "w"
     with open(success_rate_file_path, mode) as f:

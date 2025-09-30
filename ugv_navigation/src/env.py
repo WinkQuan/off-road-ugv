@@ -117,6 +117,11 @@ class GazeboUGV:
             cv_img[np.isnan(cv_img)] = 0
             # Apply domain randomization
             cv_img = self.randomize_image_color_and_texture(cv_img)
+            # 将输入图像缩放为224×224
+            cv_img = cv2.resize(cv_img, (224, 224))
+            # print(cv_img.shape)
+            # cv2.imshow("img",cv_img)
+            # cv2.imwrite("img.jpg", cv_img)
 
             return cv_img
         except Exception as err:
@@ -220,7 +225,8 @@ class GazeboUGV:
         state.reference_frame = "world"
         state.pose.position.x = x
         state.pose.position.y = y
-        state.pose.position.z = 0.75 + random.uniform(-0.5, 0.5)
+        # state.pose.position.z = 0.75 + random.uniform(-0.5, 0.5)
+        state.pose.position.z = -20
         state.twist.linear.x = 0
         state.twist.linear.y = 0
         state.twist.linear.z = 0
@@ -301,7 +307,7 @@ class GazeboUGV:
         dist2goal, _ = self.goal2robot()
         reward = 0.1 * (self.dist_init - self.dist) - 0.002
 
-        if dist2goal < 0.5:
+        if dist2goal < 1.5:
             reward = 10.0
             print("Arrival!")
             terminal = True
