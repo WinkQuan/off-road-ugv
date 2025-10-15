@@ -21,7 +21,8 @@
         <pose>0 0 0.12 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.9874 0.5709 0.05</size>
+            <!-- <size>0.9874 0.5709 0.05</size> -->
+            <size>0.9874 0.7 0.05</size>
           </box>
         </geometry>
       </collision>
@@ -84,6 +85,21 @@
       <enable_wind>0</enable_wind>
       <kinematic>0</kinematic>
 
+      <!-- 碰撞传感器 -->
+      <sensor name="bumper" type="contact">
+        <update_rate>30.0</update_rate>
+        <always_on>true</always_on>
+        <contact>
+          <collision>base_link_collision</collision>
+        </contact>
+        <plugin name="gazebo_ros_bumper_controller" filename="libgazebo_ros_bumper.so">
+            <alwaysOn>true</alwaysOn>
+            <updateRate>30.0</updateRate>
+            <bumperTopicName>bumper_states</bumperTopicName>
+            <frameName>base_link</frameName>
+            <visualize>true</visualize>
+        </plugin>
+      </sensor>
     </link>
 
     <link name='sensor_rack'>
@@ -310,12 +326,12 @@
         <camera name="camera_0">
           <horizontal_fov>1.50971</horizontal_fov>
           <image>
-            <width>1280</width>
-            <height>720</height>
+            <width>640</width>
+            <height>480</height>
             <format>R8G8B8</format>
           </image>
           <clip>
-            <near>0.4</near>
+            <near>0.1</near>
             <far>300</far>
           </clip>
           <noise>
@@ -325,10 +341,10 @@
           </noise>
           <lens>
             <intrinsics>
-              <fx>1020.51</fx>
-              <fy>1020.51</fy>
-              <cx>959.5</cx>
-              <cy>599.5</cy>
+              <fx>337.22195</fx>
+              <fy>337.22195</fy>
+              <cx>320.5</cx>
+              <cy>240.5</cy>
               <s>0</s>
             </intrinsics>
             <type>stereographic</type>
@@ -339,7 +355,7 @@
         <update_rate>9</update_rate>
         <visualize>1</visualize>
         <!-- <pose>0.34655 0.07561 0.08992 0 -0.26 -0.58</pose> -->
-        <pose>0.34655 0.07561 0.08992 0 -0.26 0</pose>
+        <pose>0.5 0.2 0.1 0 -0.1 0</pose>
         <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
           <alwaysOn>true</alwaysOn>
           <updateRate>0.0</updateRate>

@@ -22,18 +22,18 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(4)
 
 # 可视化数据工具
-# wandb.login()
-# wandb.init(project="Your_Project", name="Your_Run_Name")
+wandb.login()
+wandb.init(project="OFF-ROAD-UGV", name=time.strftime("%Y-%m-%d %H:%M:%S"))
 
 # 设置训练总轮数、最大步长和车重
-total_episode = 10000
+total_episode = 5000
 max_step_per_episode = 80
 # ugv_mass = 62.01455
 ugv_mass = 1.48
 
 # 设置模型保存路径和模型文件名
 model_path = "Model/"
-pth_path = model_path + "Your_Model_Path_Name"
+pth_path = model_path + "model.pth"
 
 #
 GazeboUGV = env.GazeboUGV(max_step=max_step_per_episode)
@@ -97,8 +97,8 @@ for i_episode in range(total_episode + 1):
         ts = time.time()
         if len(agent.replay_buffer.memory) > 64:
             loss_imitation, loss_dqn = agent.learn()
-            # wandb.log({"Loss_Imi": loss_imitation}, step=i_episode)
-            # wandb.log({"Loss_DQN": loss_dqn}, step=i_episode)
+            wandb.log({"Loss_Imi": loss_imitation}, step=i_episode)
+            wandb.log({"Loss_DQN": loss_dqn}, step=i_episode)
         while time.time() - ts <= 0.1:
             continue
         next_state1, next_state2, terminal, reward, success = GazeboUGV.step(time_step=t + 1)
@@ -120,21 +120,21 @@ for i_episode in range(total_episode + 1):
     ep_reward_list.append(current_episode_reward)
     ep_step_list.append(t + 1)
 
-    if len(ep_success_list) >= 10:
+    if len(ep_success_list) >= 50:
         # Use the latest N results to calculate the success rate.
-        recent_results = ep_success_list[-10:]
-        success_rate = sum(recent_results) / 10
+        recent_results = ep_success_list[-50:]
+        success_rate = sum(recent_results) / 50
     else:
-        success_rate = 0
+        success_rate = sum(ep_success_list) / len(ep_success_list)
 
     print(
         "Episode:{} \t\t step:{} \t\t current_episode_reward:{:.2f} \t\t epsilon:{:.2f}".format(
             i_episode, t + 1, current_episode_reward, agent.eps
         )
     )
-    # wandb.log({"Reward": current_episode_reward}, step=i_episode)
-    # wandb.log({"Step": t + 1}, step=i_episode)
-    # wandb.log({"Success Rate": success_rate}, step=i_episode)
+    wandb.log({"Reward": current_episode_reward}, step=i_episode)
+    wandb.log({"Step": t + 1}, step=i_episode)
+    wandb.log({"Success Rate": success_rate}, step=i_episode)
     reward_file_path = model_path + "Reward"
     step_file_path = model_path + "Step"
     success_rate_file_path = model_path + "Success_Rate"
@@ -154,7 +154,6 @@ for i_episode in range(total_episode + 1):
                 f.write(f"{step}\n")
         ep_step_list = []
         # Save the model and ONNX file
-        # agent.save_model(pth_path)
-        # onnx_file_name = f"Your_ONNX_Name_{i_episode + 1}.onnx"
-        # agent.save_onnx_model(model_path + onnx_file_name)
-
+        agent.save_model(pth_path)
+        onnx_file_name = "Model_" + time.strftime("%Y-%m-%d") + f"_{i_episode + 1}.onnx"
+        agent.save_onnx_model(model_path + onnx_file_name)

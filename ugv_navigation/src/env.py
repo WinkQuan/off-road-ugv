@@ -14,6 +14,7 @@ import copy
 import config
 from gazebo_msgs.msg import ModelState
 from gazebo_msgs.msg import ModelStates
+from gazebo_msgs.msg import ContactsState
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point32
@@ -52,6 +53,7 @@ class GazeboUGV:
         self.set_state = rospy.Publisher("/gazebo/set_model_state", ModelState, queue_size=10)
         self.object_state_sub = rospy.Subscriber("gazebo/model_states", ModelStates, self.ModelStateCallBack)
         self.image_sub = rospy.Subscriber("/mycar/camera_right/image_raw_right", Image, self.ImageCallBack)
+        self.contact_sub = rospy.Subscriber("/bumper_states", ContactsState, self.ContactCallBack)
         self.unpause = rospy.ServiceProxy("/gazebo/unpause_physics", Empty)
         self.pause = rospy.ServiceProxy("/gazebo/pause_physics", Empty)
         rospy.sleep(1.0)
@@ -81,6 +83,9 @@ class GazeboUGV:
 
     def ImageCallBack(self, img):
         self.image = img
+
+    def ContactCallBack(self, contact_states):
+        self.contact_states = contact_states
 
     def randomize_image_color_and_texture(self, cv_img):
         """
@@ -118,7 +123,7 @@ class GazeboUGV:
             # Apply domain randomization
             cv_img = self.randomize_image_color_and_texture(cv_img)
             # 将输入图像缩放为224×224
-            cv_img = cv2.resize(cv_img, (224, 224))
+            # cv_img = cv2.resize(cv_img, (224, 224))
             # print(cv_img.shape)
             # cv2.imshow("img",cv_img)
             # cv2.imwrite("img.jpg", cv_img)
@@ -207,7 +212,7 @@ class GazeboUGV:
             state.reference_frame = "world"  # ''ground_plane'
             state.pose.position.x = config.obstacle_position[i][0] + random.uniform(-0.2, 0.2)
             state.pose.position.y = config.obstacle_position[i][1] + random.uniform(-0.2, 0.2)
-            state.pose.position.z = 3.0
+            state.pose.position.z = 0
             state.twist.linear.x = 0
             state.twist.linear.y = 0
             state.twist.linear.z = 0
@@ -237,9 +242,9 @@ class GazeboUGV:
 
     def reset(self):
         # 设置小车的初始位置和目标位置
-        # start_index = np.random.choice(len(self.start_space))
+        start_index = np.random.choice(len(self.start_space))
         # target_index = np.random.choice(len(self.target_space))
-        start_index = 0
+        # start_index = 0
         target_index = 0
         start = np.array(self.start_space[start_index]) + np.random.uniform(-0.3, 0.3)
         target = np.array(self.target_space[target_index]) + np.random.uniform(-0.3, 0.3)
@@ -307,27 +312,31 @@ class GazeboUGV:
         dist2goal, _ = self.goal2robot()
         reward = 0.1 * (self.dist_init - self.dist) - 0.002
 
+        # 与目标距离小于1.5米：到达
         if dist2goal < 1.5:
             reward = 10.0
             print("Arrival!")
             terminal = True
             self.success = True
 
+        # 超出边界：出界
         elif (
-            (self.self_state[0] >= 10)
-            or (self.self_state[0] <= -10)
-            or (self.self_state[1] >= 20)
-            or (self.self_state[1] <= -20)
+            (self.self_state[0] >= 6.5)
+            or (self.self_state[0] <= -6.5)
+            or (self.self_state[1] >= 13.5)
+            or (self.self_state[1] <= -13.5)
         ):
             reward = -1.0
             print("Out!")
             terminal = True
 
-        elif self.detect_collision():
+        # 碰撞传感器状态states非空：碰撞
+        elif self.contact_states.states:
             reward = -1.0
             print("Collision!")
             terminal = True
 
+        # 与超出最大步数：超时
         elif time_step == self.max_step_per_episode:
             # reward = -1.0
             print("Timeout!")
