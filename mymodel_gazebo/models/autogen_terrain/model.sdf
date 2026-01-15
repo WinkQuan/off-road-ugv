@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='ASCII'?>
+<sdf version="1.4">
+  <!-- <model name="autogen_terrain">
+    <static>true</static>
+    <link name="link">
+      <collision name="collision">
+        <geometry>
+          <heightmap>
+            <uri>materials/textures/heightmap.png</uri>
+            <size>129 129 12</size>
+            <pos>0 0 0</pos>
+          </heightmap>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <heightmap>
+            <texture>
+              <diffuse>materials/textures/water.jpg</diffuse>
+              <normal>file://media/materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <texture>
+              <diffuse>materials/textures/sand.jpg</diffuse>
+              <normal>file://media/materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <texture>
+              <diffuse>materials/textures/grass.jpg</diffuse>
+              <normal>file://media/materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <texture>
+              <diffuse>file://media/materials/textures/dirt_diffusespecular.png</diffuse>
+              <normal>file://media/materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <blend>
+              <min_height>0</min_height>
+              <fade_dist>0.8</fade_dist>
+            </blend>
+            <blend>
+              <min_height>0.1</min_height>
+              <fade_dist>1.5</fade_dist>
+            </blend>
+            <blend>
+              <min_height>3</min_height>
+              <fade_dist>6</fade_dist>
+            </blend>
+            <uri>materials/textures/heightmap.png</uri>
+            <size>129 129 12</size>
+            <pos>0 0 0</pos>
+          </heightmap>
+        </geometry>
+      </visual>
+    </link>
+  </model> -->
+  <model name='autogen_terrain'>
+    <static>1</static>
+    <link name='link'>
+      <collision name='collision'>
+        <geometry>
+          <heightmap>
+            <uri>materials/textures/heightmap.png</uri>
+            <size>129 129 12</size>
+            <pos>0 0 0</pos>
+            <texture>
+              <size>10</size>
+              <diffuse>__default__</diffuse>
+              <normal>__default__</normal>
+            </texture>
+            <blend>
+              <min_height>0</min_height>
+              <fade_dist>0</fade_dist>
+            </blend>
+          </heightmap>
+        </geometry>
+        <max_contacts>10</max_contacts>
+        <surface>
+          <contact>
+            <collide_bitmask>0xffff</collide_bitmask>
+          </contact>
+          <friction>
+            <ode>
+              <mu>100</mu>
+              <mu2>50</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      <visual name='visual'>
+        <geometry>
+          <heightmap>
+            <texture>
+              <diffuse>materials/textures/water.jpg</diffuse>
+              <normal>materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <texture>
+              <diffuse>materials/textures/sand.jpg</diffuse>
+              <normal>textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <texture>
+              <diffuse>materials/textures/grass.jpg</diffuse>
+              <normal>materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <texture>
+              <diffuse>materials/textures/dirt_diffusespecular.png</diffuse>
+              <normal>materials/textures/flat_normal.png</normal>
+              <size>5</size>
+            </texture>
+            <blend>
+              <min_height>0</min_height>
+              <fade_dist>0.8</fade_dist>
+            </blend>
+            <blend>
+              <min_height>0.1</min_height>
+              <fade_dist>1.5</fade_dist>
+            </blend>
+            <blend>
+              <min_height>3</min_height>
+              <fade_dist>6</fade_dist>
+            </blend>
+            <uri>materials/textures/heightmap.png</uri>
+            <size>129 129 12</size>
+            <pos>0 0 0</pos>
+          </heightmap>
+        </geometry>
+      </visual>
+      <self_collide>0</self_collide>
+      <enable_wind>0</enable_wind>
+      <kinematic>0</kinematic>
+    </link>
+  </model>
+  <model name='AutoGen Terrain'>
+    <pose frame=''>0 0 0 0 -0 0</pose>
+    <scale>1 1 1</scale>
+    <link name='link'>
+      <pose frame=''>0 0 0 0 -0 0</pose>
+      <velocity>0 0 0 0 -0 0</velocity>
+      <acceleration>0 0 0 0 -0 0</acceleration>
+      <wrench>0 0 0 0 -0 0</wrench>
+    </link>
+  </model>
+</sdf>

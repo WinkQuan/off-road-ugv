@@ -16,11 +16,11 @@ success_count = 0
 step_count = 0
 
 
-GazeboUAV = env.GazeboUAV(max_step=max_step_per_episode)
-agent = ddqn.DQN(GazeboUAV, GazeboUAV.action_space_vx, GazeboUAV.action_space_vy, batch_size=64, memory_size=10000, target_update=4,
+GazeboUGV = env.GazeboUGV(max_step=max_step_per_episode)
+agent = ddqn.DQN(GazeboUGV, GazeboUGV.action_space_vx, GazeboUGV.action_space_vy, batch_size=64, memory_size=10000, target_update=4,
                  gamma=0.99, learning_rate=1e-4, eps=0.0, eps_min=0.0, eps_period=5000, network='Duel')
 ## ONNX Model for Drone Decision-Making ##
-model = "./Your_ONNX_Name_500.onnx"
+model = "./Model/best_model.onnx"
 csv_path = './Your_CSV_File'
 tra_path = "./Your_Tra_File"
 sess = ort.InferenceSession(model)
@@ -28,8 +28,8 @@ obs_img = sess.get_inputs()[0].name
 obs_pos_onnx = sess.get_inputs()[1].name
 
 
-print('Action Space_vx = ', GazeboUAV.action_space_vx)
-print('Action Space_vy = ', GazeboUAV.action_space_vy)
+print('Action Space_vx = ', GazeboUGV.action_space_vx)
+print('Action Space_vy = ', GazeboUGV.action_space_vy)
 linear_x_values = []
 linear_y_values = []
 obs_data_gazebo = []
@@ -37,20 +37,20 @@ uav_pos_list = []
 t = 1
 
 for i in range(max_episode):
-    state1, state2, dist_normalized = GazeboUAV.reset()
+    state1, state2, dist_normalized = GazeboUGV.reset()
     print("dist_normalized = ", dist_normalized)
     time.sleep(0.1)
     for t in range(max_step_per_episode + 1):
         start_time = time.time()
-        goal = np.array(GazeboUAV.goal)
-        curr_pos = np.array(GazeboUAV.self_state[0:2])
+        goal = np.array(GazeboUGV.goal)
+        curr_pos = np.array(GazeboUGV.self_state[0:2])
         uav_pos_list.append(curr_pos)
-        obs_pos = np.array(GazeboUAV.cylinder_pos)
-        action_space_vx = GazeboUAV.action_space_vx
-        action_space_vy = GazeboUAV.action_space_vy
-        att, rep, vx_world, vy_world = APF_Vel_ROS.vel_control(goal_pos=goal, curr_pos=curr_pos, obs_pos=obs_pos,
+        obs_pos = np.array(GazeboUGV.cylinder_pos)
+        action_space_vx = GazeboUGV.action_space_vx
+        action_space_vy = GazeboUGV.action_space_vy
+        att, rep, vx_world, vy_world = APF_Vel_ROS.vel_control(target_location=goal, current_position=curr_pos, obs_pos=obs_pos,
                                                                mass=mass, obs_radius=1.0)
-        yaw = GazeboUAV.self_state[2]
+        yaw = GazeboUGV.self_state[2]
         # -------Convert the velocity in world frame to the body frame
         vx_uav, vy_uav = APF_Vel_ROS.convert_to_uav_frame(vx_world, vy_world, yaw)
         vx_uav_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_uav, action_space_vx, strategy='min')
@@ -61,9 +61,9 @@ for i in range(max_episode):
         })
         output_vx_index = np.argmax(output_velocity[0])  # linear_vx
         output_vy_index = np.argmax(output_velocity[1])  # linear_vy
-        GazeboUAV.execute_linear_velocity(output_vx_index, output_vy_index)
+        GazeboUGV.execute_linear_velocity(output_vx_index, output_vy_index)
 
-        next_state1, next_state2, terminal, reward, success = GazeboUAV.step(time_step=t)
+        next_state1, next_state2, terminal, reward, success = GazeboUGV.step(time_step=t)
         if terminal:
             if success:
                 np.savetxt(tra_path, uav_pos_list)

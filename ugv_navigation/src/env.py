@@ -189,7 +189,7 @@ class GazeboUGV:
         # pose
         state.pose.position.x = x
         state.pose.position.y = y
-        state.pose.position.z = 1.0
+        state.pose.position.z = 3.0
         quaternion = tf.transformations.quaternion_from_euler(0, 0, theta)
         state.pose.orientation.x = quaternion[0]
         state.pose.orientation.y = quaternion[1]
@@ -210,9 +210,9 @@ class GazeboUGV:
         for i in range(10):
             state.model_name = "unit_cylinder" + str(i)
             state.reference_frame = "world"  # ''ground_plane'
-            state.pose.position.x = config.obstacle_position[i][0] + random.uniform(-0.2, 0.2)
-            state.pose.position.y = config.obstacle_position[i][1] + random.uniform(-0.2, 0.2)
-            state.pose.position.z = 0
+            state.pose.position.x = config.obstacle_position[i][0]
+            state.pose.position.y = config.obstacle_position[i][1]
+            # state.pose.position.z = 0
             state.twist.linear.x = 0
             state.twist.linear.y = 0
             state.twist.linear.z = 0
@@ -254,7 +254,7 @@ class GazeboUGV:
         self.set_uav_pose(start[0], start[1], theta)
         self.set_goal_pose(target[0], target[1])
         rospy.sleep(0.1)
-        self.set_obs_pose_random()
+        # self.set_obs_pose_random()
         d0, alpha0 = self.goal2robot()
         self.position = [d0, alpha0]
         self.reward = 0
