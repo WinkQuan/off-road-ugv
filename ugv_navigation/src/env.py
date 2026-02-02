@@ -67,14 +67,12 @@ class GazeboUGV:
             data.pose[idx].orientation.w,
         )
         euler = tf.transformations.euler_from_quaternion(quaternion)
-        yaw = euler[2]
         self.self_state = [
             data.pose[idx].position.x,
             data.pose[idx].position.y,
-            yaw,
-            data.twist[idx].linear.x,
-            data.twist[idx].linear.y,
-            data.twist[idx].angular.z,
+            euler[2],   # yaw
+            euler[0],   # roll
+            euler[1],   # pitch
         ]
 
         for i in range(10):
@@ -158,6 +156,7 @@ class GazeboUGV:
         beta = self.normalize_angle(beta)
         return dist, beta
 
+    # 未使用此函数
     def detect_collision(self):
         collision = False
         for i in range(len(self.cylinder_pos)):
@@ -176,6 +175,16 @@ class GazeboUGV:
     def get_states(self):
         self.stacked_imgs = np.dstack([self.stacked_imgs[:, :, -9:], self.get_image_observation()])
         return self.stacked_imgs, self.position
+
+    def get_visible_obstacles(self):
+        """获取当前可视障碍物位置"""
+        visible_obs = []
+        for i in range(len(self.cylinder_pos)):
+            dist, angle = self.obs2robot(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
+            # 视野范围：距离小于8米，角度在[-pi/4, pi/4]之间
+            if dist < 8.0 and abs(angle) < (math.pi / 4):
+                visible_obs.append([self.cylinder_pos[i][0], self.cylinder_pos[i][1]])
+        return visible_obs
 
     def set_uav_pose(self, x, y, theta):
         state = ModelState()
@@ -310,7 +319,16 @@ class GazeboUGV:
     def get_reward_and_terminate(self, time_step):
         terminal = False
         dist2goal, _ = self.goal2robot()
-        reward = 0.1 * (self.dist_init - self.dist) - 0.002
+        # reward = 0.1 * (self.dist_init - self.dist) - 0.002
+
+        r_goal = 0.1 * (self.dist_init - self.dist) # 朝向目标方向奖励
+        # r_yaw = math.cos(self.position[1]) - 1    # 偏航角奖励
+        r_roll = math.cos(self.self_state[3]) - 1   # 翻滚角奖励
+        r_pitch = math.cos(self.self_state[4]) - 1  # 俯仰角奖励
+
+        print("r_goal: %.4f, r_roll: %.4f, r_pitch: %.4f" % (r_goal, r_roll, r_pitch))
+        # 总奖励
+        reward = r_goal + r_pitch + r_roll
 
         # 与目标距离小于1.5米：到达
         if dist2goal < 1.5:
@@ -326,19 +344,19 @@ class GazeboUGV:
             or (self.self_state[1] >= 13.5)
             or (self.self_state[1] <= -13.5)
         ):
-            reward = -1.0
+            reward = -3.0
             print("Out!")
             terminal = True
 
         # 碰撞传感器状态states非空：碰撞
         elif self.contact_states.states:
-            reward = -1.0
+            reward = -5.0
             print("Collision!")
             terminal = True
 
         # 与超出最大步数：超时
         elif time_step == self.max_step_per_episode:
-            # reward = -1.0
+            reward = -1.0
             print("Timeout!")
             terminal = True
 

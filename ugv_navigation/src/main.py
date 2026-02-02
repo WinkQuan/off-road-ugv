@@ -70,6 +70,8 @@ for i_episode in range(total_episode + 1):
         target_location = np.array(GazeboUGV.goal)
         current_position = np.array(GazeboUGV.self_state[0:2])
         obs_pos = np.array(GazeboUGV.cylinder_pos)
+        # 只获取当前可视障碍物位置
+        # visible_obs_pos = np.array(GazeboUGV.get_visible_obstacles())
         action_space_vx = GazeboUGV.action_space_vx
         action_space_vy = GazeboUGV.action_space_vy
         # att和rep似乎不需要返回？

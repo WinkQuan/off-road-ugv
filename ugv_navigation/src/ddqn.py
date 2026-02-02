@@ -67,6 +67,19 @@ class DQNNet(nn.Module):
         self.pool_1 = nn.AvgPool2d(2, stride=2)
         self.cnn_3 = nn.Conv2d(64, 64, kernel_size=2, stride=1)
         self.fc_target = nn.Linear(2, 64)
+        self.cnn_a = nn.Sequential(
+            nn.Conv2d(12, 32, kernel_size=(4, 3), stride=4),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+
+            nn.Conv2d(32, 64, kernel_size=(4, 3), stride=3),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+
+            # nn.Conv2d(64, 64, kernel_size=2, stride=1),
+            # nn.Dropout(0.2),
+            # nn.ReLU()
+        )
         #  Modified the output size of the image convolution, previously it was 1 x 64 x 1 x 1, now it is 1 X 64 X 5 X 3,so the size of the fully connected layer needs to be changed as well
         # self.fc_1 = nn.Linear(64 * 1 * 1 + 64, 256)
         self.fc_1 = nn.Linear(64 * 53 * 40 + 64, 256)
@@ -83,9 +96,10 @@ class DQNNet(nn.Module):
     def forward(self, state1, state2):
         batch_size = state1.size(0)
         img = state1 / 255
-        x1 = F.relu(self.cnn_1(img.transpose(1, 3)))
-        x2 = F.relu(self.cnn_2(x1))
-        x3 = x2
+        # x1 = F.relu(self.cnn_1(img.transpose(1, 3)))
+        # x2 = F.relu(self.cnn_2(x1))
+        # x3 = x2
+        x3 = self.cnn_a(img.transpose(1, 3))
 
         x_target = F.relu(self.fc_target(state2))
         x_merge = torch.cat((x3.view(batch_size, -1), x_target), axis=1)
@@ -131,6 +145,7 @@ class DQN():
         # Target network
         self.target_net = DQNNet(network=self.network, action_space_vx=self.action_space_vx, action_space_vy=self.action_space_vy).to(self.device)
         self.target_net.load_state_dict(self.predict_net.state_dict())
+        self.target_net.eval()
         self.target_update = target_update
         self.update_count = 0
 
@@ -157,22 +172,25 @@ class DQN():
 
     # Get the action
     def get_action(self, state1, state2, dist_normalized):
-        # Get the Q-values
-        state1 = torch.FloatTensor(state1).to(self.device).unsqueeze(0)
-        state2 = torch.FloatTensor(state2).to(self.device).unsqueeze(0)
-        # If your existing environment trains well, use the following code, otherwise keep it commented out
-        # state2[:, 0] = state2[:, 0] / dist_normalized
-        # state2[:, 1] = state2[:, 1] / math.pi
-        q_values_vx, q_values_vy = self.predict_net(state1, state2)
+        self.predict_net.eval()
+        with torch.no_grad():
+            # Get the Q-values
+            state1 = torch.FloatTensor(state1).to(self.device).unsqueeze(0)
+            state2 = torch.FloatTensor(state2).to(self.device).unsqueeze(0)
+            # If your existing environment trains well, use the following code, otherwise keep it commented out
+            # state2[:, 0] = state2[:, 0] / dist_normalized
+            # state2[:, 1] = state2[:, 1] / math.pi
+            q_values_vx, q_values_vy = self.predict_net(state1, state2)
 
-        # Use the action with the highest Q-value
-        action_vx = np.argmax(q_values_vx.cpu().detach().numpy())
-        action_vy = np.argmax(q_values_vy.cpu().detach().numpy())
+            # Use the action with the highest Q-value
+            action_vx = np.argmax(q_values_vx.cpu().detach().numpy())
+            action_vy = np.argmax(q_values_vy.cpu().detach().numpy())
 
         return action_vx, action_vy
 
     # Learn the policy
     def learn(self):
+        self.predict_net.train()
         # Replay buffer
         states1, states2, actions_vx, actions_vy, apf_index_vx, apf_index_vy, rewards, next_states1, next_states2, dones = self.replay_buffer.sample_and_process(self.batch_size)
         q_values_vx, q_values_vy = self.predict_net(states1, states2)

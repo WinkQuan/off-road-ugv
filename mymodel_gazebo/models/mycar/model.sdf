@@ -310,6 +310,7 @@
           </linear_acceleration>
         </imu>
         <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+          <robotNamespace>/</robotNamespace>
           <topicName>imu</topicName>
           <bodyName>imu_link</bodyName>
           <updateRateHZ>10.0</updateRateHZ>
@@ -357,6 +358,7 @@
         <!-- <pose>0.34655 0.07561 0.08992 0 -0.26 -0.58</pose> -->
         <pose>0.5 0.2 0.1 0 -0.1 0</pose>
         <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+          <robotNamespace>/</robotNamespace>
           <alwaysOn>true</alwaysOn>
           <updateRate>0.0</updateRate>
           <cameraName>mycar/camera_right</cameraName>
@@ -443,7 +445,8 @@
           </noise>
         </ray>
         <plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_gpu_laser.so">
-          <topicName>/mycar/laser/scan</topicName>
+          <robotNamespace>/</robotNamespace>
+          <topicName>mycar/laser/scan</topicName>
           <frameName>hokuyo_link</frameName>
         </plugin>
       </sensor>
@@ -806,6 +809,9 @@
       <odometryTopic>odom</odometryTopic> <!-- 里程计话题 -->
       <robotBaseFrame>base_link_JOINT_0</robotBaseFrame>
       <publishOdomTF>true</publishOdomTF> <!-- 里程计相关，odom -->
+      <covariance_x>0.0001</covariance_x>
+      <covariance_y>0.0001</covariance_y>
+      <covariance_yaw>0.01</covariance_yaw>
     </plugin>
 
   </model>
