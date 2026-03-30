@@ -58,11 +58,11 @@ def vel_control(target_location, current_position, obs_pos, mass, obs_radius):
     return att, rep, ax, ay
 
 
-def convert_to_uav_frame(vx_world, vy_world, yaw):
+def convert_to_ugv_frame(vx_world, vz_world, yaw):
     # Conversion to body coordinate system
-    vx_uav = 1.8 * (vy_world * math.sin(yaw) + vx_world * math.cos(yaw))
-    vy_uav = 1.8 * (vy_world * math.cos(yaw) - vx_world * math.sin(yaw))
-    return vx_uav, vy_uav
+    vx_ugv = 1.8 * (vz_world * math.sin(yaw) + vx_world * math.cos(yaw))
+    vz_ugv = 1.8 * (vz_world * math.cos(yaw) - vx_world * math.sin(yaw))
+    return vx_ugv, vz_ugv
 
 
 def triangular_membership(x, a, b, c):
@@ -86,8 +86,7 @@ def fuzzy_map_v_triangular(v_scaled, action_space, strategy="max"):
     # Define the triangular membership functions for each action
     width = 0.5
     memberships = [
-        triangular_membership(v_scaled, action - width / 2, action, action + width / 2)
-        for action in action_space
+        triangular_membership(v_scaled, action - width / 2, action, action + width / 2) for action in action_space
     ]
 
     # Find all actions with the highest membership value

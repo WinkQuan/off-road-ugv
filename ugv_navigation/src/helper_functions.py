@@ -65,11 +65,11 @@ def normalize_angle(theta):
         theta += 2 * math.pi
     return theta
 
-def convert_to_world_frame(vx_uav, vy_uav, yaw):
+def convert_to_world_frame(vx_uav, vz_uav, yaw):
     # Conversion to body coordinate system
-    vx_world = vx_uav * math.cos(yaw) - vy_uav * math.sin(yaw)
-    vy_world = vx_uav * math.sin(yaw) + vy_uav * math.cos(yaw)
-    return vx_world, vy_world
+    vx_world = vx_uav * math.cos(yaw) - vz_uav * math.sin(yaw)
+    vz_world = vx_uav * math.sin(yaw) + vz_uav * math.cos(yaw)
+    return vx_world, vz_world
 
 def goal2rob(goal_position, position_drone_1, yaw):
     dx = goal_position[0, 0] - position_drone_1[0, 0]

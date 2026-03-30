@@ -43,10 +43,10 @@ class GazeboUGV:
         self.reward = 0
 
         self.cylinder_pos = [[] for i in range(10)]
-        self.uav_trajectory = [[], []]
+        self.ugv_trajectory = [[], []]  # renamed for consistency
         self.obstacle_state = []
         self.action_space_vx = np.arange(-1.0, 1.5, 0.5).tolist()
-        self.action_space_vy = np.arange(-1.0, 1.5, 0.5).tolist()
+        self.action_space_vz = np.arange(-1.0, 1.5, 0.5).tolist()
         self.max_step_per_episode = max_step
         # ------------------------Publisher and Subscriber---------------------------
         self.vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
@@ -70,9 +70,9 @@ class GazeboUGV:
         self.self_state = [
             data.pose[idx].position.x,
             data.pose[idx].position.y,
-            euler[2],   # yaw
-            euler[0],   # roll
-            euler[1],   # pitch
+            euler[2],  # yaw
+            euler[0],  # roll
+            euler[1],  # pitch
         ]
 
         for i in range(10):
@@ -94,18 +94,12 @@ class GazeboUGV:
         hsv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
         # hsv_img[:, :, 0] = (hsv_img[:, :, 0] + np.random.randint(-10, 10)) % 180  # Hue
         # hsv_img[:, :, 1] = np.clip(hsv_img[:, :, 1] * np.random.uniform(0.9, 1.1), 0, 255)  # Saturation
-        hsv_img[:, :, 2] = np.clip(
-            hsv_img[:, :, 2] * np.random.uniform(0.7, 1.3), 0, 255
-        )  # Brightness
+        hsv_img[:, :, 2] = np.clip(hsv_img[:, :, 2] * np.random.uniform(0.7, 1.3), 0, 255)  # Brightness
 
         # Add noise to the V (Value/Brightness) channel
-        noise = np.random.normal(0, 2, hsv_img[:, :, 2].shape).astype(
-            np.int16
-        )  # Use int16 to allow negative values
+        noise = np.random.normal(0, 2, hsv_img[:, :, 2].shape).astype(np.int16)  # Use int16 to allow negative values
         hsv_img[:, :, 2] = hsv_img[:, :, 2].astype(np.int16)  # Convert to int16 before adding noise
-        hsv_img[:, :, 2] = np.clip(
-            hsv_img[:, :, 2] + noise, 0, 255
-        )  # Add noise and clip values to [0, 255]
+        hsv_img[:, :, 2] = np.clip(hsv_img[:, :, 2] + noise, 0, 255)  # Add noise and clip values to [0, 255]
         hsv_img[:, :, 2] = hsv_img[:, :, 2].astype(np.uint8)  # Convert back to uint8
         cv_img = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
         cv_img = cv_img.astype(np.uint8)
@@ -136,7 +130,7 @@ class GazeboUGV:
         while alpha < -math.pi:
             alpha += 2 * math.pi
         return alpha
-    
+
     def goal2robot(self):
         # Calculate the distance between the goal and the agent
         theta = self.self_state[2]
@@ -155,16 +149,6 @@ class GazeboUGV:
         beta = math.atan2(s_y, s_x) - theta
         beta = self.normalize_angle(beta)
         return dist, beta
-
-    # 未使用此函数
-    def detect_collision(self):
-        collision = False
-        for i in range(len(self.cylinder_pos)):
-            e, _ = self.obs2robot(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
-            if e < 1.0:
-                collision = True
-
-        return collision
 
     def get_obs_state(self):
         self.obstacle_state.clear()
@@ -186,7 +170,7 @@ class GazeboUGV:
                 visible_obs.append([self.cylinder_pos[i][0], self.cylinder_pos[i][1]])
         return visible_obs
 
-    def set_uav_pose(self, x, y, theta):
+    def set_ugv_pose(self, x, y, theta):
         state = ModelState()
         move_cmd = Twist()
         move_cmd.linear.x = 0.0
@@ -260,7 +244,7 @@ class GazeboUGV:
         # -------------------------------------
         theta = -math.pi / 2
         self.set_goal(target[0], target[1])
-        self.set_uav_pose(start[0], start[1], theta)
+        self.set_ugv_pose(start[0], start[1], theta)
         self.set_goal_pose(target[0], target[1])
         rospy.sleep(0.1)
         # self.set_obs_pose_random()
@@ -276,32 +260,11 @@ class GazeboUGV:
         img, pos = self.get_states()
         return img, pos, self.dist_start
 
-    # 没用到
-    def execute(self, action_num):
-
-        move_cmd = Twist()
-        if action_num == 0:
-            angular_z = 0.5
-        elif action_num == 1:
-            angular_z = 1.0
-        elif action_num == 2:
-            angular_z = -0.5
-        elif action_num == 3:
-            angular_z = -1.0
-        elif action_num == 4:
-            angular_z = 0
-        else:
-            raise Exception("Error discrete action")
-        move_cmd.linear.x = 1.5
-        move_cmd.angular.z = angular_z
-        self.vel_pub.publish(move_cmd)
-        rospy.sleep(0.2)  # execute time
-
-    def execute_linear_velocity(self, vx_index, vy_index):
+    def execute_linear_velocity(self, vx_index, vz_index):
         move_cmd = Twist()
         move_cmd.linear.x = self.action_space_vx[vx_index]
         # 小车没有y轴线速度，只有z轴角速度
-        move_cmd.angular.z = self.action_space_vy[vy_index]
+        move_cmd.angular.z = self.action_space_vz[vz_index]
         self.vel_pub.publish(move_cmd)
         rospy.sleep(0.2)  # execute time
 
@@ -321,9 +284,9 @@ class GazeboUGV:
         dist2goal, _ = self.goal2robot()
         # reward = 0.1 * (self.dist_init - self.dist) - 0.002
 
-        r_goal = 0.1 * (self.dist_init - self.dist) # 朝向目标方向奖励
+        r_goal = 0.1 * (self.dist_init - self.dist)  # 朝向目标方向奖励
         # r_yaw = math.cos(self.position[1]) - 1    # 偏航角奖励
-        r_roll = math.cos(self.self_state[3]) - 1   # 翻滚角奖励
+        r_roll = math.cos(self.self_state[3]) - 1  # 翻滚角奖励
         r_pitch = math.cos(self.self_state[4]) - 1  # 俯仰角奖励
 
         print("r_goal: %.4f, r_roll: %.4f, r_pitch: %.4f" % (r_goal, r_roll, r_pitch))

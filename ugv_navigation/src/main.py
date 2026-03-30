@@ -36,11 +36,11 @@ model_path = "Model/"
 pth_path = model_path + "model.pth"
 
 #
-GazeboUGV = env.GazeboUGV(max_step=max_step_per_episode)
+gazebo_ugv = env.GazeboUGV(max_step=max_step_per_episode)
 agent = ddqn.DQN(
-    GazeboUGV,
-    GazeboUGV.action_space_vx,
-    GazeboUGV.action_space_vy,
+    gazebo_ugv,
+    gazebo_ugv.action_space_vx,
+    gazebo_ugv.action_space_vz,
     batch_size=64,
     memory_size=10000,
     target_update=4,
@@ -57,59 +57,52 @@ ep_reward_list = []
 ep_step_list = []
 ep_success_list = []
 
-print('Action Space_vx = ', GazeboUGV.action_space_vx)
-print('Action Space_vy = ', GazeboUGV.action_space_vy)
+print("Action Space_vx = ", gazebo_ugv.action_space_vx)
+print("Action Space_vz = ", gazebo_ugv.action_space_vz)
 
 # 开始训练，训练的总轮数为total_episode
 for i_episode in range(total_episode + 1):
     # 没用到dist_normalized
-    state1, state2, dist_normalized = GazeboUGV.reset()
+    state1, state2, dist_normalized = gazebo_ugv.reset()
     current_episode_reward = 0
     # 每一步的操作
     for t in range(max_step_per_episode):
-        target_location = np.array(GazeboUGV.goal)
-        current_position = np.array(GazeboUGV.self_state[0:2])
-        obs_pos = np.array(GazeboUGV.cylinder_pos)
+        target_location = np.array(gazebo_ugv.goal)
+        current_position = np.array(gazebo_ugv.self_state[0:2])
+        obs_pos = np.array(gazebo_ugv.cylinder_pos)
         # 只获取当前可视障碍物位置
-        # visible_obs_pos = np.array(GazeboUGV.get_visible_obstacles())
-        action_space_vx = GazeboUGV.action_space_vx
-        action_space_vy = GazeboUGV.action_space_vy
+        # visible_obs_pos = np.array(gazebo_ugv.get_visible_obstacles())
+        action_space_vx = gazebo_ugv.action_space_vx
+        action_space_vz = gazebo_ugv.action_space_vz
         # att和rep似乎不需要返回？
-        att, rep, vx_world, vy_world = APF_Vel_ROS.vel_control(
+        att, rep, vx_world, vz_world = APF_Vel_ROS.vel_control(
             target_location=target_location,
             current_position=current_position,
             obs_pos=obs_pos,
             mass=ugv_mass,
             obs_radius=5.0,
         )
-        yaw = GazeboUGV.self_state[2]
+        yaw = gazebo_ugv.self_state[2]
         # 将世界坐标系下的速度转换为无人车坐标系下的速度
-        vx_ugv, vy_ugv = APF_Vel_ROS.convert_to_uav_frame(vx_world, vy_world, yaw)
+        vx_ugv, vz_ugv = APF_Vel_ROS.convert_to_ugv_frame(vx_world, vz_world, yaw)
         vx_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_ugv, action_space_vx, strategy="min")
-        vy_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vy_ugv, action_space_vy, strategy="max")
-        # print("-----vx_ugv_mapped--------")
-        # print(vx_ugv_mapped)
-        # print("-----vy_ugv_mapped--------")
-        # print(vy_ugv_mapped)
-        # 开始训练，获取动作
-        action_vx, action_vy = agent.get_action(state1, state2, dist_normalized)
-        print("---------action" + str(t) + "-----------")
-        print(action_vx, action_vy)
-        GazeboUGV.execute_linear_velocity(action_vx, action_vy)
-        ts = time.time()
+        vz_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vz_ugv, action_space_vz, strategy="max")
+        # 开始训练，获取动作 (DQN action selection)
+        action_vx_index, action_vz_index = agent.get_action(state1, state2, dist_normalized)
+        print(
+            "action{}:{} {}".format(t + 1, action_space_vx[action_vx_index], action_space_vz[action_vz_index])
+        )  # 输出选择的动作
+        gazebo_ugv.execute_linear_velocity(action_vx_index, action_vz_index)
         if len(agent.replay_buffer.memory) > 64:
             loss_imitation, loss_dqn = agent.learn()
             wandb.log({"Loss_Imi": loss_imitation}, step=i_episode)
             wandb.log({"Loss_DQN": loss_dqn}, step=i_episode)
-        while time.time() - ts <= 0.1:
-            continue
-        next_state1, next_state2, terminal, reward, success = GazeboUGV.step(time_step=t + 1)
+        rospy.sleep(0.1)
+        next_state1, next_state2, terminal, reward, success = gazebo_ugv.step(time_step=t + 1)
         current_episode_reward += reward
-        action = [action_vx, action_vy]
-        apf_index = [vx_ugv_mapped, vy_ugv_mapped]
-        agent.replay_buffer.add(
-            state1, state2, action, apf_index, reward, next_state1, next_state2, terminal
-        )
+        action_index = [action_vx_index, action_vz_index]
+        apf_index = [vx_ugv_mapped, vz_ugv_mapped]
+        agent.replay_buffer.add(state1, state2, action_index, apf_index, reward, next_state1, next_state2, terminal)
         if terminal:
             if success:
                 ep_success_list.append(1)

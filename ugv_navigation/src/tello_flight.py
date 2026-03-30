@@ -40,7 +40,7 @@ obs_index = 0
 
 ## ONNX Model for Drone Decision Making ##
 model = "Your_ONNX_File"
-csv_path = 'YOUR_CSV_File'
+csv_path = "YOUR_CSV_File"
 sess = ort.InferenceSession(model)
 
 obs_img = sess.get_inputs()[0].name
@@ -49,6 +49,7 @@ linear_x_values = []
 linear_y_values = []
 
 ## Handlers and control functions ##
+
 
 def current_positioning_drone_1(msg):
     global position_drone_1, orientation_drone_1, yaw
@@ -61,12 +62,10 @@ def current_positioning_drone_1(msg):
     orientation_drone_1[0, 1] = msg.pose.orientation.y
     orientation_drone_1[0, 2] = msg.pose.orientation.z
     orientation_drone_1[0, 3] = msg.pose.orientation.w
-    quaternion = (msg.pose.orientation.x,
-                  msg.pose.orientation.y,
-                  msg.pose.orientation.z,
-                  msg.pose.orientation.w)
+    quaternion = (msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w)
     euler = tf.transformations.euler_from_quaternion(quaternion)
     yaw = euler[2]
+
 
 def goal_positioning(msg):
     global goal_position
@@ -82,12 +81,12 @@ def select_vel_cmd(vx_index, vy_index):
     linear_y = action_space_vy[vy_index] * 0.5
     return linear_x, linear_y
 
+
 def cb_cmd_vel(drone, linear_x, linear_y):
     drone.set_roll(linear_x)
     drone.set_pitch(linear_y)
     print("Vx = ", linear_x)
     print("Vy = ", linear_y)
-
 
 
 def handler(event, sender, data, **args):
@@ -121,7 +120,7 @@ def main():
                 container = av.open(drone.get_video_stream())
             except av.AVError as ave:
                 print(ave)
-                print('retry...')
+                print("retry...")
                 pass
 
         # skip first 300 frames
@@ -139,8 +138,8 @@ def main():
 
                 frame_count += 1
 
-                image = np.array(frame.to_image())[:, 120: 839, :]
-                cv2.imshow('Original', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                image = np.array(frame.to_image())[:, 120:839, :]
+                cv2.imshow("Original", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
                 cv2.waitKey(1)
                 # Get the latest four consecutive frames
                 frame_buffer.append(image)
@@ -156,10 +155,13 @@ def main():
                 obs_pos_data[0, 1] = alpha
                 print("obs_pos_data = ", obs_pos_data)
 
-                output_velocity = sess.run(None, {
-                    obs_img: processed_frame,
-                    obs_pos: obs_pos_data,
-                })
+                output_velocity = sess.run(
+                    None,
+                    {
+                        obs_img: processed_frame,
+                        obs_pos: obs_pos_data,
+                    },
+                )
                 output_vx_index = np.argmax(output_velocity[0])  # linear_vx
                 output_vy_index = np.argmax(output_velocity[1])  # linear_vy
                 linear_x, linear_y = select_vel_cmd(output_vx_index, output_vy_index)
@@ -169,7 +171,6 @@ def main():
                 print("Time = ", time.time() - start_time)
                 linear_x_values.append(-linear_y)
                 linear_y_values.append(linear_x)
-
 
                 if dist_target < 1.0:
                     cb_cmd_vel(drone, linear_x=0.0, linear_y=0.0)
@@ -196,28 +197,24 @@ def main():
         drone.quit()
         cv2.destroyAllWindows()
 
-    df_velocity = pd.DataFrame({
-        'linear_x': linear_x_values,
-        'linear_y': linear_y_values
-    })
+    df_velocity = pd.DataFrame({"linear_x": linear_x_values, "linear_y": linear_y_values})
 
-    df_velocity.to_csv(csv_path + 'Your_CSV_Name', index=False)
-
-    df_velocity = pd.read_csv(csv_path + 'Your_CSV_Name')
+    df_velocity.to_csv(csv_path + "Your_CSV_Name", index=False)
 
     # Plot vx and vy
     plt.figure()
-    plt.plot(df_velocity['linear_x'], label='Linear X', color='blue')
-    plt.plot(df_velocity['linear_y'], label='Linear Y', color='orange')
-    plt.xlabel('Step')
-    plt.ylabel('Velocity')
-    plt.title('Velocity Profile Over Time_Real')
+    plt.plot(df_velocity["linear_x"], label="Linear X", color="blue")
+    plt.plot(df_velocity["linear_y"], label="Linear Y", color="orange")
+    plt.xlabel("Step")
+    plt.ylabel("Velocity")
+    plt.title("Velocity Profile Over Time_Real")
     plt.legend()
     plt.show()
 
-if __name__ == '__main__':
-    rospy.init_node('test', anonymous=True)
-    rospy.Subscriber(f'/vrpn_client_node/{telloID1}/pose', PoseStamped, current_positioning_drone_1)
-    rospy.Subscriber(f'/vrpn_client_node/goal/pose', PoseStamped, goal_positioning)
+
+if __name__ == "__main__":
+    rospy.init_node("test", anonymous=True)
+    rospy.Subscriber(f"/vrpn_client_node/{telloID1}/pose", PoseStamped, current_positioning_drone_1)
+    rospy.Subscriber(f"/vrpn_client_node/goal/pose", PoseStamped, goal_positioning)
 
     main()
