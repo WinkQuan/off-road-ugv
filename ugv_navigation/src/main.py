@@ -23,7 +23,7 @@ if torch.cuda.is_available():
 
 # 可视化数据工具
 wandb.login()
-wandb.init(project="OFF-ROAD-UGV", name=time.strftime("%Y-%m-%d %H:%M:%S"))
+wandb.init(project="OFF-ROAD-UGV", name="PAL-DRL_" + time.strftime("%Y-%m-%d %H:%M:%S"))
 
 # 设置训练总轮数、最大步长和车重
 total_episode = 5000
@@ -46,9 +46,9 @@ agent = ddqn.DQN(
     target_update=4,
     gamma=0.99,
     learning_rate=1e-4,
-    eps=0.95,
-    eps_min=0.1,
-    eps_period=5000,
+    epsilon=0.95,
+    epsilon_min=0.1,
+    epsilon_period=5000,
     network="Duel",
 )  # Change the network parameter if you want to train on different network
 
@@ -69,20 +69,20 @@ for i_episode in range(total_episode + 1):
     for t in range(max_step_per_episode):
         target_location = np.array(gazebo_ugv.goal)
         current_position = np.array(gazebo_ugv.self_state[0:2])
-        obs_pos = np.array(gazebo_ugv.cylinder_pos)
+        # obs_pos = np.array(gazebo_ugv.cylinder_pos)
         # 只获取当前可视障碍物位置
-        # visible_obs_pos = np.array(gazebo_ugv.get_visible_obstacles())
+        visible_obs_pos = np.array(gazebo_ugv.get_visible_obstacles())
         action_space_vx = gazebo_ugv.action_space_vx
         action_space_vz = gazebo_ugv.action_space_vz
         # att和rep似乎不需要返回？
         att, rep, vx_world, vz_world = APF_Vel_ROS.vel_control(
             target_location=target_location,
             current_position=current_position,
-            obs_pos=obs_pos,
+            obs_pos=visible_obs_pos,
             mass=ugv_mass,
             obs_radius=5.0,
         )
-        yaw = gazebo_ugv.self_state[2]
+        yaw = gazebo_ugv.self_state[3]
         # 将世界坐标系下的速度转换为无人车坐标系下的速度
         vx_ugv, vz_ugv = APF_Vel_ROS.convert_to_ugv_frame(vx_world, vz_world, yaw)
         vx_ugv_mapped = APF_Vel_ROS.fuzzy_map_v_triangular(vx_ugv, action_space_vx, strategy="min")
@@ -98,13 +98,13 @@ for i_episode in range(total_episode + 1):
             wandb.log({"Loss_Imi": loss_imitation}, step=i_episode)
             wandb.log({"Loss_DQN": loss_dqn}, step=i_episode)
         rospy.sleep(0.1)
-        next_state1, next_state2, terminal, reward, success = gazebo_ugv.step(time_step=t + 1)
+        next_state1, next_state2, terminal, reward, termination_state = gazebo_ugv.step(time_step=t + 1)
         current_episode_reward += reward
         action_index = [action_vx_index, action_vz_index]
         apf_index = [vx_ugv_mapped, vz_ugv_mapped]
         agent.replay_buffer.add(state1, state2, action_index, apf_index, reward, next_state1, next_state2, terminal)
         if terminal:
-            if success:
+            if termination_state == "arrival":
                 ep_success_list.append(1)
             else:
                 ep_success_list.append(0)
@@ -124,7 +124,7 @@ for i_episode in range(total_episode + 1):
 
     print(
         "Episode:{} \t\t step:{} \t\t current_episode_reward:{:.2f} \t\t epsilon:{:.2f}".format(
-            i_episode, t + 1, current_episode_reward, agent.eps
+            i_episode, t + 1, current_episode_reward, agent.epsilon
         )
     )
     wandb.log({"Reward": current_episode_reward}, step=i_episode)

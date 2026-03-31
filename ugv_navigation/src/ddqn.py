@@ -1,4 +1,4 @@
-#!/home/yuhang/anaconda3/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import print_function
@@ -136,9 +136,9 @@ class DQN:
         batch_size=32,
         target_update=1000,
         gamma=0.95,
-        eps=0.95,
-        eps_min=0.1,
-        eps_period=2000,
+        epsilon=0.95,
+        epsilon_min=0.1,
+        epsilon_period=2000,
         network="DQN",
     ):
         super(DQN, self).__init__()
@@ -174,9 +174,9 @@ class DQN:
         self.gamma = gamma
 
         # Exploration setting
-        self.eps = eps
-        self.eps_min = eps_min
-        self.eps_period = eps_period
+        self.epsilon = epsilon
+        self.epsilon_min = epsilon_min
+        self.epsilon_period = epsilon_period
         self.alpha = 0.1
         self.decay_counter = 0
         # Select the algorithm
@@ -200,9 +200,12 @@ class DQN:
             q_values_vx, q_values_vz = self.predict_net(state1, state2)
 
             # Use the action with the highest Q-value
-            action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
-            action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
-
+            if np.random.random() < self.epsilon:
+                action_vx_index = np.random.randint(0, len(self.action_space_vx))
+                action_vz_index = np.random.randint(0, len(self.action_space_vz))
+            else:
+                action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
+                action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
         return action_vx_index, action_vz_index
 
     # Learn the policy

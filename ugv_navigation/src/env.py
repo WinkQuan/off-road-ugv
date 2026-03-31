@@ -1,4 +1,4 @@
-#!/home/yuhang/anaconda3/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import print_function
@@ -35,11 +35,9 @@ class GazeboUGV:
         self.target_space = config.goal_space
         self.start_space = config.start_space
 
-        self.success = False
         self.dist_start = 0
         self.dist_init = 0
         self.dist = 0
-        self.yaw = None
         self.reward = 0
 
         self.cylinder_pos = [[] for i in range(10)]
@@ -70,6 +68,7 @@ class GazeboUGV:
         self.self_state = [
             data.pose[idx].position.x,
             data.pose[idx].position.y,
+            data.pose[idx].position.z,
             euler[2],  # yaw
             euler[0],  # roll
             euler[1],  # pitch
@@ -133,7 +132,7 @@ class GazeboUGV:
 
     def goal2robot(self):
         # Calculate the distance between the goal and the agent
-        theta = self.self_state[2]
+        theta = self.self_state[3]
         a_x = self.goal[0] - self.self_state[0]
         a_y = self.goal[1] - self.self_state[1]
         dist = math.sqrt(a_x**2 + a_y**2)
@@ -142,7 +141,7 @@ class GazeboUGV:
         return dist, alpha
 
     def obs2robot(self, o_x, o_y):
-        theta = self.self_state[2]
+        theta = self.self_state[3]
         s_x = o_x - self.self_state[0]
         s_y = o_y - self.self_state[1]
         dist = math.sqrt(s_x**2 + s_y**2)
@@ -254,7 +253,7 @@ class GazeboUGV:
         self.dist_init = d0
         # 没用到dist_start
         self.dist_start = abs(target[1] - start[1])
-        self.success = False
+
         rospy.sleep(0.1)
         self.stacked_imgs = np.dstack([self.get_image_observation()] * 4)
         img, pos = self.get_states()
@@ -272,33 +271,34 @@ class GazeboUGV:
         d1, alpha1 = self.goal2robot()
         self.position = [d1, alpha1]
         self.dist = d1
-        terminal, reward, success = self.get_reward_and_terminate(time_step)
+        terminal, reward, termination_state = self.posture_aware_reward(time_step)
         self.reward = reward
         self.dist_init = self.dist
         img, pos = self.get_states()
 
-        return img, pos, terminal, reward, success
+        return img, pos, terminal, reward, termination_state
 
-    def get_reward_and_terminate(self, time_step):
+    def posture_aware_reward(self, time_step):
+        max_reward = 10.0
+        min_reward = -5.0
         terminal = False
         dist2goal, _ = self.goal2robot()
-        # reward = 0.1 * (self.dist_init - self.dist) - 0.002
 
         r_goal = 0.1 * (self.dist_init - self.dist)  # 朝向目标方向奖励
         # r_yaw = math.cos(self.position[1]) - 1    # 偏航角奖励
-        r_roll = math.cos(self.self_state[3]) - 1  # 翻滚角奖励
-        r_pitch = math.cos(self.self_state[4]) - 1  # 俯仰角奖励
-
+        r_roll = math.cos(self.self_state[4]) - 1  # 翻滚角奖励
+        r_pitch = math.cos(self.self_state[5]) - 1  # 俯仰角奖励
         print("r_goal: %.4f, r_roll: %.4f, r_pitch: %.4f" % (r_goal, r_roll, r_pitch))
         # 总奖励
         reward = r_goal + r_pitch + r_roll
 
+        termination_state = "running"
         # 与目标距离小于1.5米：到达
         if dist2goal < 1.5:
             reward = 10.0
             print("Arrival!")
             terminal = True
-            self.success = True
+            termination_state = "arrival"
 
         # 超出边界：出界
         elif (
@@ -310,17 +310,62 @@ class GazeboUGV:
             reward = -3.0
             print("Out!")
             terminal = True
+            termination_state = "out"
 
         # 碰撞传感器状态states非空：碰撞
-        elif self.contact_states.states:
+        elif hasattr(self, "contact_states") and self.contact_states and getattr(self.contact_states, "states", None):
             reward = -5.0
             print("Collision!")
             terminal = True
+            termination_state = "collision"
 
         # 与超出最大步数：超时
         elif time_step == self.max_step_per_episode:
             reward = -1.0
             print("Timeout!")
             terminal = True
+            termination_state = "timeout"
 
-        return terminal, reward, self.success
+        normalized_reward = (reward - min_reward) / (max_reward - min_reward)
+        return terminal, normalized_reward, termination_state
+
+    def get_reward_and_terminate(self, time_step):
+        terminal = False
+        dist2goal, _ = self.goal2robot()
+        reward = 0.1 * (self.dist_init - self.dist) - 0.002
+
+        termination_state = "running"
+        # 与目标距离小于1.5米：到达
+        if dist2goal < 1.5:
+            reward = 10.0
+            print("Arrival!")
+            terminal = True
+            termination_state = "arrival"
+
+        # 超出边界：出界
+        elif (
+            (self.self_state[0] >= 6.5)
+            or (self.self_state[0] <= -6.5)
+            or (self.self_state[1] >= 13.5)
+            or (self.self_state[1] <= -13.5)
+        ):
+            reward = -1.0
+            print("Out!")
+            terminal = True
+            termination_state = "out"
+
+        # 碰撞传感器状态states非空：碰撞
+        elif hasattr(self, "contact_states") and self.contact_states and getattr(self.contact_states, "states", None):
+            reward = -1.0
+            print("Collision!")
+            terminal = True
+            termination_state = "collision"
+
+        # 与超出最大步数：超时
+        elif time_step == self.max_step_per_episode:
+            # reward = -1.0
+            print("Timeout!")
+            terminal = True
+            termination_state = "timeout"
+
+        return terminal, reward, termination_state

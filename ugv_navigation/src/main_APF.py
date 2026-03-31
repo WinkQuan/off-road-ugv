@@ -33,7 +33,7 @@ for i_episode in range(total_episode):
         att, rep, vx_world, vz_world = APF_Vel_ROS.vel_control(
             target_location=goal, current_position=curr_pos, obs_pos=obs_pos, mass=mass, obs_radius=2.0
         )
-        yaw = gazebo_ugv.self_state[2]
+        yaw = gazebo_ugv.self_state[3]
         # -------Convert the velocity in world frame to the body frame
         vx_ugv, vz_ugv = APF_Vel_ROS.convert_to_ugv_frame(vx_world, vz_world, yaw)
         sum_vx_ugv.append(vx_ugv)

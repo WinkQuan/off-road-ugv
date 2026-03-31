@@ -1,4 +1,4 @@
-#!/home/yuhang/anaconda3/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 goal_space = [
