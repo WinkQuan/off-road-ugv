@@ -1,0 +1,14 @@
+# Local tooling
+.codex
+.codex/
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+
+# Experiment runtime logs
+ugv_navigation/src/wandb/
+
+# Experiment artifacts
+ugv_navigation/src/Model/
+ugv_navigation/src/Validate/

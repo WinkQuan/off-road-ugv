@@ -86,7 +86,8 @@ class DQNNet(nn.Module):
         )
         #  Modified the output size of the image convolution, previously it was 1 x 64 x 1 x 1, now it is 1 X 64 X 5 X 3,so the size of the fully connected layer needs to be changed as well
         # self.fc_1 = nn.Linear(64 * 1 * 1 + 64, 256)
-        self.fc_1 = nn.Linear(64 * 53 * 40 + 64, 256)
+        # self.fc_1 = nn.Linear(64 * 53 * 40 + 64, 256)
+        self.fc_1 = nn.Linear(64 * 18 * 18 + 64, 256)
         self.fc_2 = nn.Linear(256, 256)
         self.output_vx = nn.Linear(256, len(self.action_space_vx))
         self.output_vz = nn.Linear(256, len(self.action_space_vz))
@@ -149,7 +150,10 @@ class DQN:
 
         # Torch
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+        print(
+            "Using Device:",
+            torch.cuda.get_device_name(torch.cuda.current_device()) if torch.cuda.is_available() else "CPU",
+        )
         # Deep Q network
         self.predict_net = DQNNet(
             network=self.network, action_space_vx=self.action_space_vx, action_space_vz=self.action_space_vz
@@ -200,12 +204,14 @@ class DQN:
             q_values_vx, q_values_vz = self.predict_net(state1, state2)
 
             # Use the action with the highest Q-value
-            if np.random.random() < self.epsilon:
-                action_vx_index = np.random.randint(0, len(self.action_space_vx))
-                action_vz_index = np.random.randint(0, len(self.action_space_vz))
-            else:
-                action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
-                action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
+            action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
+            action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
+            # if np.random.random() < self.epsilon:
+            #     action_vx_index = np.random.randint(0, len(self.action_space_vx))
+            #     action_vz_index = np.random.randint(0, len(self.action_space_vz))
+            # else:
+            #     action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
+            #     action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
         return action_vx_index, action_vz_index
 
     # Learn the policy
@@ -228,29 +234,31 @@ class DQN:
         loss_imitation_vx = F.cross_entropy(q_values_vx.squeeze(1), apf_index_vx.squeeze(1))
         loss_imitation_vz = F.cross_entropy(q_values_vz.squeeze(1), apf_index_vz.squeeze(1))
         loss_imitation = loss_imitation_vx + loss_imitation_vz
+        predict_values_vx = q_values_vx.gather(1, action_index_vx.view(-1, 1))
+        predict_values_vz = q_values_vz.gather(1, action_index_vz.view(-1, 1))
         # Calculate values and target values
         if self.network == "Duel" or self.network == "Double":
-            q_values_vx_pred, q_values_vz_pred = self.predict_net(next_states1, next_states2)
-            _, actions_prime_vx = torch.max(q_values_vx_pred, 1)
-            _, actions_prime_vz = torch.max(q_values_vz_pred, 1)
+            with torch.no_grad():
+                q_values_vx_pred, q_values_vz_pred = self.predict_net(next_states1, next_states2)
+                _, actions_prime_vx = torch.max(q_values_vx_pred, 1)
+                _, actions_prime_vz = torch.max(q_values_vz_pred, 1)
 
-            q_target_value_vx = self.target_net(next_states1, next_states2)[0].gather(1, actions_prime_vx.view(-1, 1))
-            q_target_value_vz = self.target_net(next_states1, next_states2)[1].gather(1, actions_prime_vz.view(-1, 1))
+                target_q_values_vx, target_q_values_vz = self.target_net(next_states1, next_states2)
+                q_target_value_vx = target_q_values_vx.gather(1, actions_prime_vx.view(-1, 1))
+                q_target_value_vz = target_q_values_vz.gather(1, actions_prime_vz.view(-1, 1))
 
-            target_values_vx = rewards.view(-1, 1) + self.gamma * q_target_value_vx * (1 - dones).view(-1, 1)
-            target_values_vz = rewards.view(-1, 1) + self.gamma * q_target_value_vz * (1 - dones).view(-1, 1)
-
-            predict_values_vx = self.predict_net(states1, states2)[0].gather(1, action_index_vx.view(-1, 1))
-            predict_values_vz = self.predict_net(states1, states2)[1].gather(1, action_index_vz.view(-1, 1))
+                target_values_vx = rewards.view(-1, 1) + self.gamma * q_target_value_vx * (1 - dones).view(-1, 1)
+                target_values_vz = rewards.view(-1, 1) + self.gamma * q_target_value_vz * (1 - dones).view(-1, 1)
 
         else:
-            q_values_vx_pred, q_values_vz_pred = self.predict_net(states1, states2)
-            q_values_target_vx, q_values_target_vz = self.target_net(next_states1, next_states2)
-
-            target_values_vx = (rewards + self.gamma * torch.max(q_values_target_vx, 1)[0] * (1 - dones)).view(-1, 1)
-            target_values_vz = (rewards + self.gamma * torch.max(q_values_target_vz, 1)[0] * (1 - dones)).view(-1, 1)
-            predict_values_vx = q_values_vx_pred.gather(1, action_index_vx.view(-1, 1))
-            predict_values_vz = q_values_vz_pred.gather(1, action_index_vz.view(-1, 1))
+            with torch.no_grad():
+                q_values_target_vx, q_values_target_vz = self.target_net(next_states1, next_states2)
+                target_values_vx = (rewards + self.gamma * torch.max(q_values_target_vx, 1)[0] * (1 - dones)).view(
+                    -1, 1
+                )
+                target_values_vz = (rewards + self.gamma * torch.max(q_values_target_vz, 1)[0] * (1 - dones)).view(
+                    -1, 1
+                )
 
         # Calculate the loss and optimize the network
         loss_dqn_vx = self.loss_fn(predict_values_vx, target_values_vx)
@@ -273,12 +281,17 @@ class DQN:
         return loss_imitation.item(), loss_dqn.item()
 
     def save_model(self, path):
-        checkpoint = {"model_states": self.predict_net.state_dict(), "optimizer_states": self.optimizer.state_dict()}
+        checkpoint = {
+            "model_states": self.predict_net.state_dict(),
+            "target_model_states": self.target_net.state_dict(),
+            "optimizer_states": self.optimizer.state_dict(),
+        }
         torch.save(checkpoint, path)
 
     def save_onnx_model(self, param_path_onnx):
         self.predict_net.eval()
-        dummy_state1 = torch.randn(64, 480, 640, 12).to(self.device)
+        # dummy_state1 = torch.randn(64, 480, 640, 12).to(self.device)
+        dummy_state1 = torch.randn(64, 224, 224, 12).to(self.device)
         dummy_state2 = torch.randn(64, 2).to(self.device)
         torch.onnx.export(
             self.predict_net,
@@ -296,7 +309,11 @@ class DQN:
         if os.path.exists(filename):
             checkpoint = torch.load(filename, map_location=device)
             self.predict_net.load_state_dict(checkpoint["model_states"])
+            target_states = checkpoint.get("target_model_states", checkpoint["model_states"])
+            self.target_net.load_state_dict(target_states)
             self.optimizer.load_state_dict(checkpoint["optimizer_states"])
+            self.predict_net.eval()
+            self.target_net.eval()
             print(f"Model and optimizer states have been loaded from {filename}")
         else:
             print(f"No file found at {filename}, unable to load states.")

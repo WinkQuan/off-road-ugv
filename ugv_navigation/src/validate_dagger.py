@@ -1,17 +1,18 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-Validation script for BC (Behavior Cloning) algorithm
-Tests the trained BC model with all 8 evaluation metrics
+Validation script for DAgger algorithm
+Tests the trained DAgger model with all 8 evaluation metrics
 """
 import csv
 from pathlib import Path
 
-import rospy
-import numpy as np
-import time
 import env
+import numpy as np
 import onnxruntime as ort
+import rospy
+import time
+
 
 max_step_per_episode = 100
 max_episode = 100
@@ -24,28 +25,28 @@ total_energy_consumption = 0.0
 total_posture_stability = 0.0
 total_execution_time = 0.0
 
-ugv_mass = 1.48  # kg
-ugv_inertia = 2.4  # kg·m²
+ugv_mass = 1.48
+ugv_inertia = 2.4
 
 gazebo_ugv = env.GazeboUGV(max_step=max_step_per_episode)
 
-## ONNX Model
-model = Path("./Model/BC/model_bc.onnx")
-validate_dir = Path("./Validate/BC")
-csv_path = validate_dir / "BC_velocity.csv"
-tra_path = validate_dir / "BC_trajectory.txt"
+model = Path("./Model/DAgger/model_dagger.onnx")
+validate_dir = Path("./Validate/DAgger")
+csv_path = validate_dir / "DAgger_velocity.csv"
+tra_path = validate_dir / "DAgger_trajectory.txt"
 metrics_path = validate_dir / "metrics.csv"
 validate_dir.mkdir(parents=True, exist_ok=True)
 
 if not model.exists():
     raise FileNotFoundError(
         f"Expected ONNX model not found: {model.resolve()}. "
-        f"Please confirm validate_bc.py is pointing to the correct file."
+        f"Please confirm validate_dagger.py is pointing to the correct file."
     )
 
 sess = ort.InferenceSession(str(model))
 obs_img = sess.get_inputs()[0].name
 obs_pos_onnx = sess.get_inputs()[1].name
+print(f"Using ONNX model: {model}")
 
 
 def write_dict_csv(path, fieldnames, row):
@@ -64,9 +65,8 @@ def write_velocity_csv(path, linear_x_values, angular_z_values):
 print("Action Space_vx = ", gazebo_ugv.action_space_vx)
 print("Action Space_vz = ", gazebo_ugv.action_space_vz)
 print("=" * 50)
-print("Validating BC Agent (Behavior Cloning)")
+print("Validating DAgger Agent")
 print("=" * 50)
-print(f"Using ONNX model: {model}")
 
 for i in range(max_episode):
     state1, state2, dist_normalized = gazebo_ugv.reset()
@@ -108,7 +108,6 @@ for i in range(max_episode):
         episode_energy_consumption += current_ke - prev_ke
         prev_ke = current_ke
 
-        # Posture stability
         roll = gazebo_ugv.self_state[4]
         pitch = gazebo_ugv.self_state[5]
         episode_roll_sq += roll**2
@@ -135,13 +134,14 @@ for i in range(max_episode):
                 print(f"  ✓ Success! Steps={t+1}, Time={episode_execution_time:.2f}s")
             elif termination_state == "collision":
                 collision_count += 1
-                print(f"  ✗ Collision!")
+                print("  ✗ Collision!")
             elif termination_state == "timeout":
                 timeout_count += 1
-                print(f"  ⏱ Timeout!")
+                print("  ⏱ Timeout!")
             elif termination_state == "out":
                 print("  ✗ Out of bounds!")
             break
+
         state1 = next_state1
         state2 = next_state2
 
@@ -165,7 +165,7 @@ else:
 
 print()
 print("=" * 50)
-print("BC Validation Results")
+print("DAgger Validation Results")
 print("=" * 50)
 print(f"Success Rate: {success_rate*100:.2f}%")
 print(f"Collision Rate: {collision_rate*100:.2f}%")
@@ -193,7 +193,7 @@ write_dict_csv(
         "max_step_per_episode",
     ],
     {
-        "algorithm": "BC",
+        "algorithm": "DAgger",
         "success_rate_pct": success_rate * 100,
         "collision_rate_pct": collision_rate * 100,
         "timeout_rate_pct": timeout_rate * 100,

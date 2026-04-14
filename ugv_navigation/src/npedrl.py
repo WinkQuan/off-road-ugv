@@ -5,14 +5,20 @@ from __future__ import print_function
 
 import os
 import torch
+import math
+import rospy
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+import time
+import env
+import config
 import random
 import numpy as np
 import torch.onnx
 from collections import deque
 import onnxruntime as ort
+
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -24,27 +30,41 @@ class ReplayBuffer:
         self.max_size = max_size
         self.memory = deque(maxlen=self.max_size)
 
-    # 移除 apf_index，仅保留标准 RL 经验
-    def add(self, state1, state2, action_index, reward, next_state1, next_state2, done):
-        self.memory.append((state1, state2, action_index, reward, next_state1, next_state2, done))
+    # Add the replay memory
+    def add(self, state1, state2, action_index, apf_index, reward, next_state1, next_state2, done):
+        self.memory.append((state1, state2, action_index, apf_index, reward, next_state1, next_state2, done))
 
+    # Sample the replay memory
     def sample_and_process(self, batch_size):
         batch = random.sample(self.memory, min(batch_size, len(self.memory)))
-        states1, states2, action_indices, rewards, next_states1, next_states2, dones = zip(*batch)
+        # Decompose each element
+        states1, states2, action_indices, apf_indices, rewards, next_states1, next_states2, dones = zip(*batch)
 
         states1 = torch.FloatTensor(np.stack(states1)).to(self.device)
         states2 = torch.FloatTensor(np.stack(states2)).to(self.device)
         action_indices = torch.LongTensor(np.stack(action_indices)).to(self.device)
-
         action_index_vx = action_indices[:, 0].long().view(-1, 1)
         action_index_vz = action_indices[:, 1].long().view(-1, 1)
-
+        apf_indices = torch.LongTensor(np.stack(apf_indices)).to(self.device)
+        apf_index_vx = apf_indices[:, 0].long().view(-1, 1)
+        apf_index_vz = apf_indices[:, 1].long().view(-1, 1)
         rewards = torch.FloatTensor(np.stack(rewards)).to(self.device)
         next_states1 = torch.FloatTensor(np.stack(next_states1)).to(self.device)
         next_states2 = torch.FloatTensor(np.stack(next_states2)).to(self.device)
         dones = torch.FloatTensor(np.stack(dones)).to(self.device)
 
-        return (states1, states2, action_index_vx, action_index_vz, rewards, next_states1, next_states2, dones)
+        return (
+            states1,
+            states2,
+            action_index_vx,
+            action_index_vz,
+            apf_index_vx,
+            apf_index_vz,
+            rewards,
+            next_states1,
+            next_states2,
+            dones,
+        )
 
 
 class DQNNet(nn.Module):
@@ -52,8 +72,9 @@ class DQNNet(nn.Module):
         super(DQNNet, self).__init__()
         self.action_space_vx = action_space_vx
         self.action_space_vz = action_space_vz
+        self.max_scene_dis = 30
         self.network = network
-
+        # Modified Network Architecture
         self.fc_target = nn.Linear(2, 64)
         self.cnn_a = nn.Sequential(
             nn.Conv2d(12, 32, kernel_size=(4, 3), stride=4),
@@ -61,10 +82,11 @@ class DQNNet(nn.Module):
             nn.Conv2d(32, 64, kernel_size=(4, 3), stride=3),
             nn.ReLU(),
         )
-
+        #  Modified the output size of the image convolution, previously it was 1 x 64 x 1 x 1, now it is 1 X 64 X 5 X 3,so the size of the fully connected layer needs to be changed as well
+        # self.fc_1 = nn.Linear(64 * 1 * 1 + 64, 256)
+        # self.fc_1 = nn.Linear(64 * 53 * 40 + 64, 256)
         self.fc_1 = nn.Linear(64 * 18 * 18 + 64, 256)
         self.fc_2 = nn.Linear(256, 256)
-
         self.output_vx = nn.Linear(256, len(self.action_space_vx))
         self.output_vz = nn.Linear(256, len(self.action_space_vz))
 
@@ -84,7 +106,7 @@ class DQNNet(nn.Module):
         fc_1 = F.relu(self.fc_1(x_merge))
         fc_2 = F.relu(self.fc_2(fc_1))
 
-        # Dueling 网络架构拆分
+        # Dueling DQN--Split the output
         if self.network == "Duel":
             advantage_vx, value_vx = torch.split(fc_2, 128, dim=1)
             advantage_vx = self.advantage_vx(advantage_vx)
@@ -102,7 +124,7 @@ class DQNNet(nn.Module):
         return vx_output, vz_output
 
 
-class D3QN:
+class DQN:
     def __init__(
         self,
         env,
@@ -116,78 +138,102 @@ class D3QN:
         epsilon=0.95,
         epsilon_min=0.1,
         epsilon_period=2000,
-        network="Duel",
+        network="DQN",
     ):
-        super(D3QN, self).__init__()
+        super(DQN, self).__init__()
         self.env = env
         self.network = network
         self.action_space_vx = action_space_vx
         self.action_space_vz = action_space_vz
 
+        # Torch
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print(
             "Using Device:",
             torch.cuda.get_device_name(torch.cuda.current_device()) if torch.cuda.is_available() else "CPU",
         )
-
+        # Deep Q network
         self.predict_net = DQNNet(
             network=self.network, action_space_vx=self.action_space_vx, action_space_vz=self.action_space_vz
         ).to(self.device)
         self.optimizer = optim.Adam(self.predict_net.parameters(), lr=learning_rate)
         self.loss_fn = nn.MSELoss()
 
+        # Target network
         self.target_net = DQNNet(
             network=self.network, action_space_vx=self.action_space_vx, action_space_vz=self.action_space_vz
         ).to(self.device)
         self.target_net.load_state_dict(self.predict_net.state_dict())
         self.target_net.eval()
-
         self.target_update = target_update
         self.update_count = 0
+
+        # Replay buffer
         self.replay_buffer = ReplayBuffer(memory_size)
         self.batch_size = batch_size
 
+        # Learning setting
         self.gamma = gamma
+
+        # Exploration setting
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_period = epsilon_period
+        self.alpha = 0.1
+        self.decay_counter = 0
+        # Select the algorithm
+        if self.network == "DQN":
+            print("DQN")
+        elif self.network == "Double":
+            print("DDQN")
+        elif self.network == "Duel":
+            print("Duel")
 
-        if self.network == "Duel":
-            print("D3QN Baseline Initialized (Dueling + Double DQN)")
+    # Get the action
+    def get_action(self, state1, state2, dist_normalized):
+        self.predict_net.eval()
+        with torch.no_grad():
+            # Get the Q-values
+            state1 = torch.FloatTensor(state1).to(self.device).unsqueeze(0)
+            state2 = torch.FloatTensor(state2).to(self.device).unsqueeze(0)
+            # If your existing environment trains well, use the following code, otherwise keep it commented out
+            # state2[:, 0] = state2[:, 0] / dist_normalized
+            # state2[:, 1] = state2[:, 1] / math.pi
+            q_values_vx, q_values_vz = self.predict_net(state1, state2)
 
-    def get_action(self, state1, state2, dist_normalized=None):
-        # 恢复 Epsilon-Greedy 探索逻辑，纯 RL 前期必须依靠随机探索
-        if np.random.random() < self.epsilon:
-            action_vx_index = np.random.randint(0, len(self.action_space_vx))
-            action_vz_index = np.random.randint(0, len(self.action_space_vz))
-        else:
-            self.predict_net.eval()
-            with torch.no_grad():
-                state1 = torch.FloatTensor(state1).to(self.device).unsqueeze(0)
-                state2 = torch.FloatTensor(state2).to(self.device).unsqueeze(0)
-
-                q_values_vx, q_values_vz = self.predict_net(state1, state2)
-
-                action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
-                action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
+            # Use the action with the highest Q-value
+            action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
+            action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
         return action_vx_index, action_vz_index
 
+    # Learn the policy
     def learn(self):
         self.predict_net.train()
-
-        # 移除了模仿学习相关的 APF 数据采样
-        states1, states2, action_index_vx, action_index_vz, rewards, next_states1, next_states2, dones = (
-            self.replay_buffer.sample_and_process(self.batch_size)
-        )
-
-        current_q_values_vx, current_q_values_vz = self.predict_net(states1, states2)
-
-        # Double DQN 目标值计算逻辑
+        # Replay buffer
+        (
+            states1,
+            states2,
+            action_index_vx,
+            action_index_vz,
+            apf_index_vx,
+            apf_index_vz,
+            rewards,
+            next_states1,
+            next_states2,
+            dones,
+        ) = self.replay_buffer.sample_and_process(self.batch_size)
+        q_values_vx, q_values_vz = self.predict_net(states1, states2)
+        loss_imitation_vx = F.cross_entropy(q_values_vx.squeeze(1), apf_index_vx.squeeze(1))
+        loss_imitation_vz = F.cross_entropy(q_values_vz.squeeze(1), apf_index_vz.squeeze(1))
+        loss_imitation = loss_imitation_vx + loss_imitation_vz
+        predict_values_vx = q_values_vx.gather(1, action_index_vx.view(-1, 1))
+        predict_values_vz = q_values_vz.gather(1, action_index_vz.view(-1, 1))
+        # Calculate values and target values
         if self.network == "Duel" or self.network == "Double":
             with torch.no_grad():
-                q_values_vx_next, q_values_vz_next = self.predict_net(next_states1, next_states2)
-                _, actions_prime_vx = torch.max(q_values_vx_next, 1)
-                _, actions_prime_vz = torch.max(q_values_vz_next, 1)
+                q_values_vx_pred, q_values_vz_pred = self.predict_net(next_states1, next_states2)
+                _, actions_prime_vx = torch.max(q_values_vx_pred, 1)
+                _, actions_prime_vz = torch.max(q_values_vz_pred, 1)
 
                 target_q_values_vx, target_q_values_vz = self.target_net(next_states1, next_states2)
                 q_target_value_vx = target_q_values_vx.gather(1, actions_prime_vx.view(-1, 1))
@@ -196,8 +242,6 @@ class D3QN:
                 target_values_vx = rewards.view(-1, 1) + self.gamma * q_target_value_vx * (1 - dones).view(-1, 1)
                 target_values_vz = rewards.view(-1, 1) + self.gamma * q_target_value_vz * (1 - dones).view(-1, 1)
 
-            predict_values_vx = current_q_values_vx.gather(1, action_index_vx.view(-1, 1))
-            predict_values_vz = current_q_values_vz.gather(1, action_index_vz.view(-1, 1))
         else:
             with torch.no_grad():
                 q_values_target_vx, q_values_target_vz = self.target_net(next_states1, next_states2)
@@ -207,25 +251,26 @@ class D3QN:
                 target_values_vz = (rewards + self.gamma * torch.max(q_values_target_vz, 1)[0] * (1 - dones)).view(
                     -1, 1
                 )
-            predict_values_vx = current_q_values_vx.gather(1, action_index_vx.view(-1, 1))
-            predict_values_vz = current_q_values_vz.gather(1, action_index_vz.view(-1, 1))
 
-        # 仅保留 DQN Loss 计算，移除模仿损失计算
+        # Calculate the loss and optimize the network
         loss_dqn_vx = self.loss_fn(predict_values_vx, target_values_vx)
         loss_dqn_vz = self.loss_fn(predict_values_vz, target_values_vz)
         loss_dqn = loss_dqn_vx + loss_dqn_vz
-
+        loss = self.alpha * loss_dqn + (1 - self.alpha) * loss_imitation
+        self.decay_counter += 1
+        if self.decay_counter % 500 == 0:
+            self.alpha += 0.05
+            self.alpha = min(self.alpha, 0.9)
+            print(f"Weight of the DQN Loss is set to {self.alpha}")
         self.optimizer.zero_grad()
-        loss_dqn.backward()
+        loss.backward()
         self.optimizer.step()
-
         # Update the target network
         self.update_count += 1
         if self.update_count == self.target_update:
             self.target_net.load_state_dict(self.predict_net.state_dict())
             self.update_count = 0
-
-        return loss_dqn.item()
+        return loss_imitation.item(), loss_dqn.item()
 
     def save_model(self, path):
         checkpoint = {
@@ -237,6 +282,7 @@ class D3QN:
 
     def save_onnx_model(self, param_path_onnx):
         self.predict_net.eval()
+        # dummy_state1 = torch.randn(64, 480, 640, 12).to(self.device)
         dummy_state1 = torch.randn(64, 224, 224, 12).to(self.device)
         dummy_state2 = torch.randn(64, 2).to(self.device)
         torch.onnx.export(
@@ -245,7 +291,10 @@ class D3QN:
             param_path_onnx,
             input_names=["dummy_state1", "dummy_state2"],
             output_names=["output_velocity_x", "output_velocity_y"],
-            dynamic_axes={"dummy_state1": {0: "batch_size"}, "dummy_state2": {0: "batch_size"}},
+            dynamic_axes={
+                "dummy_state1": {0: "batch_size"},  # Dynamic batch size
+                "dummy_state2": {0: "batch_size"},
+            },  # Dynamic batch size
         )
 
     def load_model(self, filename, device):
@@ -263,5 +312,10 @@ class D3QN:
 
     @staticmethod
     def load_onnx_model(onnx_file_path):
+        """
+        加载ONNX模型
+        :param onnx_file_path: ONNX model file path
+        :return: InferenceSession object for onnxruntime
+        """
         sess = ort.InferenceSession(onnx_file_path)
         return sess

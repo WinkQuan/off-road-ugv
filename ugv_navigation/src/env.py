@@ -28,9 +28,14 @@ class GazeboUGV:
 
         # -----------Params--------------------------------------------------
         self.image = None
+        self.self_state = [0.0] * 6
         self.stacked_imgs = None
         self.bridge = CvBridge()
         self.position = []
+        self.goal = [0.0, 0.0]
+        self.contact_states = ContactsState()
+        self._have_model_state = False
+        self._have_image = False
 
         self.target_space = config.goal_space
         self.start_space = config.start_space
@@ -40,7 +45,7 @@ class GazeboUGV:
         self.dist = 0
         self.reward = 0
 
-        self.cylinder_pos = [[] for i in range(10)]
+        self.cylinder_pos = [list(pos) for pos in config.obstacle_position[:10]]
         self.ugv_trajectory = [[], []]  # renamed for consistency
         self.obstacle_state = []
         self.action_space_vx = np.arange(-1.0, 1.5, 0.5).tolist()
@@ -55,9 +60,14 @@ class GazeboUGV:
         self.unpause = rospy.ServiceProxy("/gazebo/unpause_physics", Empty)
         self.pause = rospy.ServiceProxy("/gazebo/pause_physics", Empty)
         rospy.sleep(1.0)
+        self.wait_for_ready(timeout=5.0)
 
     def ModelStateCallBack(self, data):
-        idx = data.name.index("mycar")
+        name_to_index = {name: idx for idx, name in enumerate(data.name)}
+        idx = name_to_index.get("mycar")
+        if idx is None:
+            return
+
         quaternion = (
             data.pose[idx].orientation.x,
             data.pose[idx].orientation.y,
@@ -73,16 +83,35 @@ class GazeboUGV:
             euler[0],  # roll
             euler[1],  # pitch
         ]
+        self._have_model_state = True
 
         for i in range(10):
-            idx = data.name.index("unit_cylinder" + str(i))
-            self.cylinder_pos[i] = [data.pose[idx].position.x, data.pose[idx].position.y]
+            obs_idx = name_to_index.get("unit_cylinder" + str(i))
+            if obs_idx is None:
+                continue
+            self.cylinder_pos[i] = [data.pose[obs_idx].position.x, data.pose[obs_idx].position.y]
 
     def ImageCallBack(self, img):
         self.image = img
+        self._have_image = True
 
     def ContactCallBack(self, contact_states):
         self.contact_states = contact_states
+
+    def wait_for_ready(self, timeout=5.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline and not rospy.is_shutdown():
+            if self._have_model_state and self._have_image:
+                return
+            rospy.sleep(0.05)
+
+        missing_items = []
+        if not self._have_model_state:
+            missing_items.append("model state")
+        if not self._have_image:
+            missing_items.append("image")
+        missing_str = ", ".join(missing_items) if missing_items else "unknown state"
+        raise RuntimeError(f"GazeboUGV initialization timed out while waiting for: {missing_str}")
 
     def randomize_image_color_and_texture(self, cv_img):
         """
@@ -107,6 +136,8 @@ class GazeboUGV:
 
     def get_image_observation(self):
         # Ros image to cv2 image
+        if (not self._have_image) or (self.image is None):
+            raise RuntimeError("Image observation is not ready yet.")
         try:
             cv_img = self.bridge.imgmsg_to_cv2(self.image, "bgr8")
             cv_img = np.array(cv_img, dtype=np.uint8)
@@ -114,7 +145,7 @@ class GazeboUGV:
             # Apply domain randomization
             cv_img = self.randomize_image_color_and_texture(cv_img)
             # 将输入图像缩放为224×224
-            # cv_img = cv2.resize(cv_img, (224, 224))
+            cv_img = cv2.resize(cv_img, (224, 224))
             # print(cv_img.shape)
             # cv2.imshow("img",cv_img)
             # cv2.imwrite("img.jpg", cv_img)
@@ -132,6 +163,8 @@ class GazeboUGV:
 
     def goal2robot(self):
         # Calculate the distance between the goal and the agent
+        if not self._have_model_state:
+            raise RuntimeError("Model state is not ready yet.")
         theta = self.self_state[3]
         a_x = self.goal[0] - self.self_state[0]
         a_y = self.goal[1] - self.self_state[1]
@@ -141,6 +174,8 @@ class GazeboUGV:
         return dist, alpha
 
     def obs2robot(self, o_x, o_y):
+        if not self._have_model_state:
+            raise RuntimeError("Model state is not ready yet.")
         theta = self.self_state[3]
         s_x = o_x - self.self_state[0]
         s_y = o_y - self.self_state[1]
@@ -165,7 +200,7 @@ class GazeboUGV:
         for i in range(len(self.cylinder_pos)):
             dist, angle = self.obs2robot(self.cylinder_pos[i][0], self.cylinder_pos[i][1])
             # 视野范围：距离小于8米，角度在[-pi/4, pi/4]之间
-            if dist < 8.0 and abs(angle) < (math.pi / 4):
+            if dist < 8.0 and abs(angle) < (math.pi / 2):
                 visible_obs.append([self.cylinder_pos[i][0], self.cylinder_pos[i][1]])
         return visible_obs
 
@@ -242,10 +277,13 @@ class GazeboUGV:
         target = np.array(self.target_space[target_index]) + np.random.uniform(-0.3, 0.3)
         # -------------------------------------
         theta = -math.pi / 2
+        self._have_model_state = False
+        self._have_image = False
         self.set_goal(target[0], target[1])
         self.set_ugv_pose(start[0], start[1], theta)
         self.set_goal_pose(target[0], target[1])
         rospy.sleep(0.1)
+        self.wait_for_ready(timeout=5.0)
         # self.set_obs_pose_random()
         d0, alpha0 = self.goal2robot()
         self.position = [d0, alpha0]
@@ -271,7 +309,7 @@ class GazeboUGV:
         d1, alpha1 = self.goal2robot()
         self.position = [d1, alpha1]
         self.dist = d1
-        terminal, reward, termination_state = self.posture_aware_reward(time_step)
+        terminal, reward, termination_state = self.get_reward_and_terminate(time_step)
         self.reward = reward
         self.dist_init = self.dist
         img, pos = self.get_states()
@@ -279,12 +317,12 @@ class GazeboUGV:
         return img, pos, terminal, reward, termination_state
 
     def posture_aware_reward(self, time_step):
-        max_reward = 10.0
-        min_reward = -5.0
+        # max_reward = 10.0
+        # min_reward = -5.0
         terminal = False
         dist2goal, _ = self.goal2robot()
 
-        r_goal = 0.1 * (self.dist_init - self.dist)  # 朝向目标方向奖励
+        r_goal = 0.1 * (self.dist_init - self.dist) - 0.02  # 朝向目标方向奖励
         # r_yaw = math.cos(self.position[1]) - 1    # 偏航角奖励
         r_roll = math.cos(self.self_state[4]) - 1  # 翻滚角奖励
         r_pitch = math.cos(self.self_state[5]) - 1  # 俯仰角奖励
@@ -307,27 +345,28 @@ class GazeboUGV:
             or (self.self_state[1] >= 13.5)
             or (self.self_state[1] <= -13.5)
         ):
-            reward = -3.0
+            reward = -1.0
             print("Out!")
             terminal = True
             termination_state = "out"
 
         # 碰撞传感器状态states非空：碰撞
-        elif hasattr(self, "contact_states") and self.contact_states and getattr(self.contact_states, "states", None):
-            reward = -5.0
+        elif self.contact_states.states:
+            reward = -1.0
             print("Collision!")
             terminal = True
             termination_state = "collision"
 
         # 与超出最大步数：超时
         elif time_step == self.max_step_per_episode:
-            reward = -1.0
+            # reward = -1.0
             print("Timeout!")
             terminal = True
             termination_state = "timeout"
 
-        normalized_reward = (reward - min_reward) / (max_reward - min_reward)
-        return terminal, normalized_reward, termination_state
+        # normalized_reward = (reward - min_reward) / (max_reward - min_reward)
+        # print("Reward: %.4f, Normalized Reward: %.4f" % (reward, normalized_reward))
+        return terminal, reward, termination_state
 
     def get_reward_and_terminate(self, time_step):
         terminal = False
@@ -355,7 +394,7 @@ class GazeboUGV:
             termination_state = "out"
 
         # 碰撞传感器状态states非空：碰撞
-        elif hasattr(self, "contact_states") and self.contact_states and getattr(self.contact_states, "states", None):
+        elif self.contact_states.states:
             reward = -1.0
             print("Collision!")
             terminal = True

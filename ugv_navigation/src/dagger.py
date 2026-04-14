@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-BC (Behavior Cloning) Algorithm Implementation
-Pure imitation learning from expert demonstrations
+DAgger (Dataset Aggregation) Algorithm Implementation
+Pure imitation learning with policy rollouts and expert relabeling
 """
 
 from __future__ import absolute_import
@@ -96,10 +96,10 @@ class DQNNet(nn.Module):
         return vx_output, vz_output
 
 
-class BC:
+class DAgger:
     """
-    Behavior Cloning Agent - Pure imitation learning from expert demonstrations
-    Learns directly from APF (Artificial Potential Field) actions without Q-learning
+    DAgger Agent - Dataset Aggregation with APF expert labels.
+    The policy acts in the environment, and the APF expert relabels visited states.
     """
 
     def __init__(
@@ -112,7 +112,7 @@ class BC:
         batch_size=32,
         network="Duel",
     ):
-        super(BC, self).__init__()
+        super(DAgger, self).__init__()
         self.env = env
         self.network = network
         self.action_space_vx = action_space_vx
@@ -134,39 +134,34 @@ class BC:
         self.replay_buffer = ReplayBuffer(memory_size)
         self.batch_size = batch_size
 
-        print("BC (Behavior Cloning) Agent initialized - Pure imitation learning")
+        print("DAgger Agent initialized - policy rollout with APF expert relabeling")
 
     def get_action(self, state1, state2, dist_normalized=None):
         self.policy_net.eval()
         with torch.no_grad():
             state1 = torch.FloatTensor(state1).to(self.device).unsqueeze(0)
             state2 = torch.FloatTensor(state2).to(self.device).unsqueeze(0)
-            q_values_vx, q_values_vz = self.policy_net(state1, state2)
+            logits_vx, logits_vz = self.policy_net(state1, state2)
 
-            action_vx_index = np.argmax(q_values_vx.cpu().detach().numpy())
-            action_vz_index = np.argmax(q_values_vz.cpu().detach().numpy())
+            action_vx_index = np.argmax(logits_vx.cpu().detach().numpy())
+            action_vz_index = np.argmax(logits_vz.cpu().detach().numpy())
 
         return action_vx_index, action_vz_index
 
     def learn(self):
-        """
-        BC learning: minimize the difference between policy and expert (APF) actions
-        No Q-learning, only imitation loss
-        """
         self.policy_net.train()
         states1, states2, expert_index_vx, expert_index_vz = self.replay_buffer.sample_and_process(self.batch_size)
 
-        q_values_vx, q_values_vz = self.policy_net(states1, states2)
-
-        loss_bc_vx = self.loss_fn(q_values_vx, expert_index_vx.squeeze(1))
-        loss_bc_vz = self.loss_fn(q_values_vz, expert_index_vz.squeeze(1))
-        loss_bc = loss_bc_vx + loss_bc_vz
+        logits_vx, logits_vz = self.policy_net(states1, states2)
+        loss_dagger_vx = self.loss_fn(logits_vx, expert_index_vx.squeeze(1))
+        loss_dagger_vz = self.loss_fn(logits_vz, expert_index_vz.squeeze(1))
+        loss_dagger = loss_dagger_vx + loss_dagger_vz
 
         self.optimizer.zero_grad()
-        loss_bc.backward()
+        loss_dagger.backward()
         self.optimizer.step()
 
-        return loss_bc.item(), 0.0
+        return loss_dagger.item(), 0.0
 
     def save_model(self, path):
         checkpoint = {"model_states": self.policy_net.state_dict(), "optimizer_states": self.optimizer.state_dict()}

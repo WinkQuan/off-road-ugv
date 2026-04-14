@@ -1,182 +1,217 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-Comparison script for three algorithms: DQN vs D3QN vs BC
-Displays performance metrics side-by-side for easy comparison
+Compare real validation metrics across PAL-DRL, NPE-DRL, D3QN, BC, DAgger, and APF.
 """
 
-import pandas as pd
-import numpy as np
+import csv
 from pathlib import Path
 
 
-def read_results(algorithm_name):
-    """读取验证结果"""
-    if algorithm_name == "DQN":
-        print(f"\n{algorithm_name} Results:")
-        print("Please run validate.py to generate results")
-        return None
-    elif algorithm_name == "D3QN":
-        print(f"\n{algorithm_name} Results:")
-        print("Please run validate_d3qn.py to generate results")
-        return None
-    elif algorithm_name == "BC":
-        print(f"\n{algorithm_name} Results:")
-        print("Please run validate_bc.py to generate results")
-        return None
+ALGORITHM_SPECS = [
+    {
+        "algorithm": "PAL-DRL",
+        "metrics_path": Path("./Validate/PAL-DRL/metrics.csv"),
+        "validate_cmd": "python validate_paldrl.py",
+    },
+    {
+        "algorithm": "NPE-DRL",
+        "metrics_path": Path("./Validate/NPE-DRL/metrics.csv"),
+        "validate_cmd": "python validate_npedrl.py",
+    },
+    {
+        "algorithm": "D3QN",
+        "metrics_path": Path("./Validate/D3QN/metrics.csv"),
+        "validate_cmd": "python validate_d3qn.py",
+    },
+    {
+        "algorithm": "BC",
+        "metrics_path": Path("./Validate/BC/metrics.csv"),
+        "validate_cmd": "python validate_bc.py",
+    },
+    {
+        "algorithm": "DAgger",
+        "metrics_path": Path("./Validate/DAgger/metrics.csv"),
+        "validate_cmd": "python validate_dagger.py",
+    },
+    {
+        "algorithm": "APF",
+        "metrics_path": Path("./Validate/APF/metrics.csv"),
+        "validate_cmd": "python validate_apf.py",
+    },
+]
+
+RESULT_COLUMNS = [
+    "algorithm",
+    "success_rate_pct",
+    "collision_rate_pct",
+    "timeout_rate_pct",
+    "average_step",
+    "average_trajectory_length_m",
+    "average_energy_consumption_j",
+    "average_posture_stability_rad",
+    "average_execution_time_s",
+    "max_episode",
+    "max_step_per_episode",
+]
+
+ROUND_COLUMNS = {
+    "success_rate_pct": 2,
+    "collision_rate_pct": 2,
+    "timeout_rate_pct": 2,
+    "average_step": 2,
+    "average_trajectory_length_m": 4,
+    "average_energy_consumption_j": 4,
+    "average_posture_stability_rad": 4,
+    "average_execution_time_s": 4,
+}
+
+INT_COLUMNS = {"max_episode", "max_step_per_episode"}
 
 
-def create_comparison_table():
-    """创建对比表格"""
-    print("\n" + "=" * 80)
-    print("Algorithm Comparison: DQN vs D3QN vs BC")
-    print("=" * 80)
+def load_metrics(spec):
+    metrics_path = spec["metrics_path"]
+    if not metrics_path.exists():
+        return None, f"missing file: {metrics_path}"
 
-    algorithms = ["DQN (Original)", "D3QN (Triple Network)", "BC (Behavior Cloning)"]
+    with metrics_path.open("r", newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        fieldnames = reader.fieldnames or []
+        missing_columns = [column for column in RESULT_COLUMNS if column not in fieldnames]
+        rows = list(reader)
 
-    # 7个评价指标的说明
-    metrics = {
-        "Success Rate (%)": "Higher is better",
-        "Collision Rate (%)": "Lower is better",
-        "Timeout Rate (%)": "Lower is better",
-        "Avg Steps": "Lower is better (faster)",
-        "Avg Trajectory (m)": "Lower is better (shorter path)",
-        "Avg Energy (J)": "Lower is better (energy efficient)",
-        "Avg Posture Stability (rad)": "Lower is better (more stable)",
-        "Avg Execution Time (s)": "Lower is better (real-time)",
+    if not rows:
+        return None, f"empty file: {metrics_path}"
+    if missing_columns:
+        return None, f"missing columns {missing_columns} in {metrics_path}"
+
+    raw_row = rows[0]
+    row = {"algorithm": spec["algorithm"]}
+    for column in RESULT_COLUMNS[1:]:
+        try:
+            if column in INT_COLUMNS:
+                row[column] = int(float(raw_row[column]))
+            else:
+                row[column] = float(raw_row[column])
+        except (TypeError, ValueError):
+            return None, f"invalid numeric value for `{column}` in {metrics_path}"
+
+    return row, None
+
+
+def format_results(rows):
+    formatted = []
+    for row in rows:
+        formatted_row = row.copy()
+        for column, decimals in ROUND_COLUMNS.items():
+            formatted_row[column] = round(formatted_row[column], decimals)
+        formatted.append(formatted_row)
+    return formatted
+
+
+def print_table(rows):
+    string_rows = []
+    for row in rows:
+        string_row = {}
+        for column in RESULT_COLUMNS:
+            value = row[column]
+            if column in ROUND_COLUMNS:
+                string_row[column] = f"{value:.{ROUND_COLUMNS[column]}f}"
+            else:
+                string_row[column] = str(value)
+        string_rows.append(string_row)
+
+    column_widths = {
+        column: max(len(column), max(len(row[column]) for row in string_rows)) for column in RESULT_COLUMNS
     }
 
-    print("\nMetrics to compare:")
-    for i, (metric, desc) in enumerate(metrics.items(), 1):
-        print(f"  {i}. {metric}: {desc}")
+    header = "  ".join(column.ljust(column_widths[column]) for column in RESULT_COLUMNS)
+    separator = "  ".join("-" * column_widths[column] for column in RESULT_COLUMNS)
+    print(header)
+    print(separator)
+    for row in string_rows:
+        print("  ".join(row[column].ljust(column_widths[column]) for column in RESULT_COLUMNS))
 
-    print("\n" + "-" * 80)
-    print("Algorithm Characteristics:")
-    print("-" * 80)
 
-    chars = {
-        "DQN (Original)": [
-            "Base Q-learning with replay buffer",
-            "Dueling architecture for value/advantage separation",
-            "Good balance between exploration and exploitation",
-            "Stable learning with imitation loss mixing",
-        ],
-        "D3QN (Triple Network)": [
-            "Two target networks for more stable Q-estimates",
-            "Reduced overestimation bias",
-            "Better convergence in complex environments",
-            "Slightly higher computational cost",
-        ],
-        "BC (Behavior Cloning)": [
-            "Pure imitation learning from expert (APF) demonstrations",
-            "No exploration (deterministic policy)",
-            "Fast convergence but limited to expert capability",
-            "Best for structured navigation tasks",
-        ],
-    }
+def write_comparison_csv(rows, output_path):
+    with output_path.open("w", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=RESULT_COLUMNS)
+        writer.writeheader()
+        for row in rows:
+            csv_row = {}
+            for column in RESULT_COLUMNS:
+                value = row[column]
+                if column in ROUND_COLUMNS:
+                    csv_row[column] = f"{value:.{ROUND_COLUMNS[column]}f}"
+                else:
+                    csv_row[column] = value
+            writer.writerow(csv_row)
 
-    for algo, points in chars.items():
-        print(f"\n{algo}:")
-        for point in points:
-            print(f"  • {point}")
 
-    print("\n" + "=" * 80)
-    print("How to run the comparison:")
-    print("=" * 80)
-    print(
-        """
-1. Train DQN (original):
-   python main.py            # Already trained
-   python validate.py        # Test original model
+def is_algorithm_available(spec, rows):
+    return any(spec["algorithm"] == row["algorithm"] for row in rows)
 
-2. Train D3QN (new algorithm):
-   python main_d3qn.py       # Train D3QN
-   python validate_d3qn.py   # Test D3QN model
 
-3. Train BC (new algorithm):
-   python main_bc.py         # Train BC
-   python validate_bc.py     # Test BC model
+def sort_results(rows):
+    order = {spec["algorithm"]: index for index, spec in enumerate(ALGORITHM_SPECS)}
+    return sorted(rows, key=lambda row: order[row["algorithm"]])
 
-4. Compare results:
-   Run this script after generating all results
-    """
-    )
 
-    print("\n" + "=" * 80)
-    print("Expected Performance (Qualitative):")
-    print("=" * 80)
+def main():
+    print("=" * 100)
+    print("Algorithm Comparison Based on Validation Metrics")
+    print("=" * 100)
+    print("Metrics:")
+    print("  success_rate_pct, collision_rate_pct, timeout_rate_pct")
+    print("  average_step, average_trajectory_length_m, average_energy_consumption_j")
+    print("  average_posture_stability_rad, average_execution_time_s")
 
-    comparison_data = {
-        "Metric": [
-            "Success Rate",
-            "Navigation Efficiency",
-            "Energy Efficiency",
-            "Posture Stability",
-            "Training Stability",
-            "Convergence Speed",
-            "Real-time Performance",
-        ],
-        "DQN": [
-            "Good (multi-loss)",
-            "Good (learned policy)",
-            "Medium",
-            "Medium",
-            "Good (stable training)",
-            "Medium",
-            "Good",
-        ],
-        "D3QN": [
-            "Very Good (improved Q-estimates)",
-            "Very Good (reduced overestimation)",
-            "Very Good",
-            "Very Good",
-            "Very Good (dual targets)",
-            "Slow (more updates)",
-            "Good (same inference)",
-        ],
-        "BC": [
-            "Good (expert dependent)",
-            "Good (follows expert)",
-            "Good (copies expert)",
-            "Good (copies expert)",
-            "Very Fast (classification)",
-            "Very Fast (simple loss)",
-            "Very Good (direct imitation)",
-        ],
-    }
+    available_rows = []
+    missing_specs = []
+    invalid_specs = []
 
-    df = pd.DataFrame(comparison_data)
-    print(df.to_string(index=False))
+    for spec in ALGORITHM_SPECS:
+        row, error = load_metrics(spec)
+        if row is not None:
+            available_rows.append(row)
+        else:
+            if error.startswith("missing file:"):
+                missing_specs.append(spec)
+            else:
+                invalid_specs.append((spec, error))
 
-    print("\n" + "=" * 80)
-    print("Recommended Use Cases:")
-    print("=" * 80)
-    print(
-        """
-DQN (Original):
-  ✓ Good baseline, combines learning and imitation
-  ✓ Suitable for environments with clear reward signals
-  
-D3QN (Triple Network):
-  ✓ Complex environments with noisy rewards
-  ✓ When stability is critical
-  ✓ Best performance in challenging scenarios
-  
-BC (Behavior Cloning):
-  ✓ When expert demonstrations are reliable
-  ✓ Real-time constraints (fast inference)
-  ✓ Structured navigation tasks like off-road
-  ✓ Fast training when expert policy is known
-    """
-    )
+    print("\nResult overview:")
+    for spec in ALGORITHM_SPECS:
+        if is_algorithm_available(spec, available_rows):
+            print(f"  [FOUND]   {spec['algorithm']}: {spec['metrics_path']}")
+        else:
+            print(f"  [MISSING] {spec['algorithm']}: run `{spec['validate_cmd']}`")
 
-    print("\n" + "=" * 80)
+    if invalid_specs:
+        print("\nInvalid metrics files:")
+        for spec, error in invalid_specs:
+            print(f"  {spec['algorithm']}: {error}")
+
+    if not available_rows:
+        print("\nNo metrics.csv files were found. Run the validation scripts first.")
+        return
+
+    result_rows = sort_results(available_rows)
+    result_rows = format_results(result_rows)
+
+    output_path = Path("./Validate/algorithm_comparison.csv")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_comparison_csv(result_rows, output_path)
+
+    print("\nComparison table:")
+    print_table(result_rows)
+    print(f"\nComparison CSV saved to: {output_path}")
+
+    if missing_specs:
+        print("\nMissing results can be generated with:")
+        for spec in missing_specs:
+            print(f"  {spec['algorithm']}: {spec['validate_cmd']}")
 
 
 if __name__ == "__main__":
-    create_comparison_table()
-
-    print("\nTo add your results, manually edit this script or use:")
-    print("  python validate.py > results_dqn.txt")
-    print("  python validate_d3qn.py > results_d3qn.txt")
-    print("  python validate_bc.py > results_bc.txt")
+    main()

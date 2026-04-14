@@ -1,15 +1,16 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import csv
+from pathlib import Path
+
 import rospy
 import numpy as np
-import pandas as pd
 import time
 import env
-import ddqn
 import onnxruntime as ort
 
 
-max_step_per_episode = 400
+max_step_per_episode = 100
 max_episode = 100
 success_count = 0
 collision_count = 0
@@ -20,40 +21,46 @@ total_energy_consumption = 0.0
 total_posture_stability = 0.0
 total_execution_time = 0.0
 
-ugv_mass = 1.48  # 小车总质量 kg
-ugv_inertia = 2.4  # 转动惯量 I (kg·m²)
-
+ugv_mass = 1.48
+ugv_inertia = 2.4
 
 gazebo_ugv = env.GazeboUGV(max_step=max_step_per_episode)
-agent = ddqn.DQN(
-    gazebo_ugv,
-    gazebo_ugv.action_space_vx,
-    gazebo_ugv.action_space_vz,
-    batch_size=64,
-    memory_size=10000,
-    target_update=4,
-    gamma=0.99,
-    learning_rate=1e-4,
-    epsilon=0.0,
-    epsilon_min=0.0,
-    epsilon_period=5000,
-    network="Duel",
-)
-## ONNX Model for Vehicle Decision-Making ##
-model = "./Model/best_model.onnx"
-csv_path = "./velocity.csv"
-tra_path = "./trajectory.txt"
-sess = ort.InferenceSession(model)
+
+model = Path("./Model/NPE-DRL/model_npe_drl.onnx")
+validate_dir = Path("./Validate/NPE-DRL")
+csv_path = validate_dir / "npedrl_velocity.csv"
+tra_path = validate_dir / "npedrl_trajectory.txt"
+metrics_path = validate_dir / "metrics.csv"
+validate_dir.mkdir(parents=True, exist_ok=True)
+
+if not model.exists():
+    raise FileNotFoundError(
+        f"Expected ONNX model not found: {model.resolve()}. "
+        f"Please confirm validate_npedrl.py is pointing to the correct file."
+    )
+
+sess = ort.InferenceSession(str(model))
 obs_img = sess.get_inputs()[0].name
 obs_pos_onnx = sess.get_inputs()[1].name
 
 
+def write_dict_csv(path, fieldnames, row):
+    with path.open("w", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow(row)
+
+
+def write_velocity_csv(path, linear_x_values, angular_z_values):
+    with path.open("w", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["linear_x", "angular_z"])
+        writer.writerows(zip(linear_x_values, angular_z_values))
+
+
 print("Action Space_vx = ", gazebo_ugv.action_space_vx)
 print("Action Space_vz = ", gazebo_ugv.action_space_vz)
-linear_x_values = []
-angular_z_values = []
-ugv_pos_list = []
-t = 1
+print(f"Using ONNX model: {model}")
 
 for i in range(max_episode):
     state1, state2, dist_normalized = gazebo_ugv.reset()
@@ -66,16 +73,16 @@ for i in range(max_episode):
     episode_pitch_sq = 0.0
     prev_ke = 0.0
     prev_pos = np.array(gazebo_ugv.self_state[0:3])
+    linear_x_values = []
+    angular_z_values = []
+    ugv_pos_list = []
     for t in range(max_step_per_episode + 1):
-        goal = np.array(gazebo_ugv.goal)
         curr_pos = np.array(gazebo_ugv.self_state[0:3])
         ugv_pos_list.append(curr_pos)
-        # Calculate trajectory length (3D Euclidean distance: x, y, z)
         dist = np.linalg.norm(curr_pos - prev_pos)
         episode_trajectory_length += dist
         prev_pos = curr_pos
-        # obs_pos and action_spaces not needed for validation
-        yaw = gazebo_ugv.self_state[3]
+
         output_velocity = sess.run(
             None,
             {
@@ -83,17 +90,16 @@ for i in range(max_episode):
                 obs_pos_onnx: np.array(state2, dtype=np.float32).reshape(1, -1),
             },
         )
-        output_vx_index = np.argmax(output_velocity[0])  # linear_vx
-        output_vz_index = np.argmax(output_velocity[1])  # angular_vz
+        output_vx_index = np.argmax(output_velocity[0])
+        output_vz_index = np.argmax(output_velocity[1])
         gazebo_ugv.execute_linear_velocity(output_vx_index, output_vz_index)
-        # Record velocities for analysis
+
         vx = gazebo_ugv.action_space_vx[output_vx_index]
         omega = gazebo_ugv.action_space_vz[output_vz_index]
         current_ke = 0.5 * ugv_mass * vx**2 + 0.5 * ugv_inertia * omega**2
         episode_energy_consumption += current_ke - prev_ke
         prev_ke = current_ke
 
-        # Posture stability accumulation (roll/pitch RMS)
         roll = gazebo_ugv.self_state[4]
         pitch = gazebo_ugv.self_state[5]
         episode_roll_sq += roll**2
@@ -105,9 +111,8 @@ for i in range(max_episode):
         next_state1, next_state2, terminal, reward, termination_state = gazebo_ugv.step(time_step=t + 1)
         if terminal:
             if termination_state == "arrival":
-                np.savetxt(tra_path, ugv_pos_list)
-                df_velocity_pre = pd.DataFrame({"linear_x": linear_x_values, "angular_z": angular_z_values})
-                df_velocity_pre.to_csv(csv_path, index=False)  # Save velocity data
+                np.savetxt(str(tra_path), ugv_pos_list)
+                write_velocity_csv(csv_path, linear_x_values, angular_z_values)
                 success_count += 1
                 step_count += t + 1
                 total_trajectory_length += episode_trajectory_length
@@ -119,13 +124,14 @@ for i in range(max_episode):
                 total_execution_time += episode_execution_time
                 print("Time Step = ", t + 1)
                 print("Execution Time = {:.3f} s".format(episode_execution_time))
-                linear_x_values.clear()
-                angular_z_values.clear()
-                ugv_pos_list.clear()
             elif termination_state == "collision":
                 collision_count += 1
+                print("Collision!")
             elif termination_state == "timeout":
                 timeout_count += 1
+                print("Timeout!")
+            elif termination_state == "out":
+                print("Out of bounds!")
             break
         state1 = next_state1
         state2 = next_state2
@@ -133,6 +139,7 @@ for i in range(max_episode):
 success_rate = success_count / max_episode
 collision_rate = collision_count / max_episode
 timeout_rate = timeout_count / max_episode
+
 if success_count > 0:
     average_step = step_count / success_count
     average_trajectory_length = total_trajectory_length / success_count
@@ -146,6 +153,7 @@ else:
     average_posture_stability = 0
     average_execution_time = 0
     print("Warning: No successful episodes, cannot calculate averages.")
+
 print("Success Rate: {:.2f}%".format(success_rate * 100))
 print("Collision Rate: {:.2f}%".format(collision_rate * 100))
 print("Timeout Rate: {:.2f}%".format(timeout_rate * 100))
@@ -154,3 +162,34 @@ print("Average Trajectory Length: {:.2f}".format(average_trajectory_length))
 print("Average Energy Consumption: {:.2f}".format(average_energy_consumption))
 print("Average Posture Stability: {:.4f}".format(average_posture_stability))
 print("Average Execution Time: {:.3f} s".format(average_execution_time))
+
+write_dict_csv(
+    metrics_path,
+    [
+        "algorithm",
+        "success_rate_pct",
+        "collision_rate_pct",
+        "timeout_rate_pct",
+        "average_step",
+        "average_trajectory_length_m",
+        "average_energy_consumption_j",
+        "average_posture_stability_rad",
+        "average_execution_time_s",
+        "max_episode",
+        "max_step_per_episode",
+    ],
+    {
+        "algorithm": "NPE-DRL",
+        "success_rate_pct": success_rate * 100,
+        "collision_rate_pct": collision_rate * 100,
+        "timeout_rate_pct": timeout_rate * 100,
+        "average_step": average_step,
+        "average_trajectory_length_m": average_trajectory_length,
+        "average_energy_consumption_j": average_energy_consumption,
+        "average_posture_stability_rad": average_posture_stability,
+        "average_execution_time_s": average_execution_time,
+        "max_episode": max_episode,
+        "max_step_per_episode": max_step_per_episode,
+    },
+)
+print(f"Metrics saved to: {metrics_path}")
