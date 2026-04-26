@@ -8,6 +8,7 @@ from torchvision.transforms import Compose, Resize
 
 UNIT_VECTOR_X = np.array([[1], [0], [0]], dtype=np.float32)
 
+
 def image_processing(frame_buffer):
     target_size = (224, 224)
     resized_images = [TF.resize(Image.fromarray(frame), target_size) for frame in frame_buffer]
@@ -16,6 +17,7 @@ def image_processing(frame_buffer):
     tensor_image = tensor_image.unsqueeze(0)
     np_image = np.array(tensor_image, dtype=np.float32)
     return np_image
+
 
 def quarternion_to_rotation_matrix(Q):
     """
@@ -51,12 +53,10 @@ def quarternion_to_rotation_matrix(Q):
     r22 = 2 * (q0 * q0 + q3 * q3) - 1
 
     # 3x3 rotation matrix
-    rot_matrix = np.array([[r00, r01, r02],
-                           [r10, r11, r12],
-                           [r20, r21, r22]],
-                          dtype=np.float32)
+    rot_matrix = np.array([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]], dtype=np.float32)
 
     return rot_matrix
+
 
 def normalize_angle(theta):
     while theta > math.pi:
@@ -65,26 +65,30 @@ def normalize_angle(theta):
         theta += 2 * math.pi
     return theta
 
+
 def convert_to_world_frame(vx_uav, vz_uav, yaw):
     # Conversion to body coordinate system
     vx_world = vx_uav * math.cos(yaw) - vz_uav * math.sin(yaw)
     vz_world = vx_uav * math.sin(yaw) + vz_uav * math.cos(yaw)
     return vx_world, vz_world
 
+
 def goal2rob(goal_position, position_drone_1, yaw):
     dx = goal_position[0, 0] - position_drone_1[0, 0]
     dy = goal_position[0, 1] - position_drone_1[0, 1]
     dist_normalized = abs(position_drone_1[0, 1] - goal_position[0, 1])
-    dist_target = np.sqrt((dx ** 2) + (dy ** 2))
+    dist_target = np.sqrt((dx**2) + (dy**2))
     angle_goal = math.atan2(dy, dx)
     alpha = math.atan2(dy, dx) - yaw
     alpha = normalize_angle(alpha)
     return dist_target, dist_normalized, alpha
+
+
 def obs2rob(o_x, o_y, yaw, position_drone_1):
     theta = yaw
     s_x = o_x - position_drone_1[0, 0]
     s_y = o_y - position_drone_1[0, 1]
-    dist_obs = math.sqrt(s_x ** 2 + s_y ** 2)
+    dist_obs = math.sqrt(s_x**2 + s_y**2)
     beta = math.atan2(s_y, s_x) - theta
     beta = normalize_angle(beta)
     return dist_obs, beta
